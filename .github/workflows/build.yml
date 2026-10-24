@@ -68,13 +68,15 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. ПАТЧ ПОРТОВ: Python врезает нашу плату в системный 02_network (Как у Макса)
+               # 3. БРОНЕБОЙНЫЙ ПАТЧ ПОРТОВ И МАК-АДРЕСА: Python врезает плату в системный 02_network
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
           python3 - "$NETWORK_FILE" <<'PY'
           from pathlib import Path
           import sys
-          p = Path(sys.argv[1])
+          p = Path(sys.argv)
           s = p.read_text()
+          
+          # Шаг А: Врезаем разметку портов свитча под lan1
           needle = '\tcase $board in\n'
           insert = (
               '\tcase $board in\n'
@@ -86,8 +88,24 @@ jobs:
               if needle not in s:
                   raise SystemExit('ERROR: case anchor not found in 02_network')
               s = s.replace(needle, insert, 1)
-              p.write_text(s)
+
+          # Шаг Б: Врезаем генератор мак-адреса из кремния флешки прямо в функцию ramips_setup_macs()
+          mac_needle = 'ramips_setup_macs() {\n\tlocal board="$1"\n\tlocal lan_mac=""\n\tlocal wan_mac=""\n\tcase $board in\n'
+          mac_insert = (
+              'ramips_setup_macs() {\n\tlocal board="$1"\n\tlocal lan_mac=""\n\tlocal wan_mac=""\n\tcase $board in\n'
+              '\tvertell,vt-mt7621d)\n'
+              '\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
+              '\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
+              '\t\t\tlan_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
+              '\t\tfi\n'
+              '\t\t;;\n'
+          )
+          if mac_needle in s and '\tvertell,vt-mt7621d)\n' not in s[s.find(mac_needle):]:
+              s = s.replace(mac_needle, mac_insert, 1)
+              
+          p.write_text(s)
           PY
+
           
           # 4. ЗАЩИТА NAND-ОБНОВЛЕНИЯ: Python врезает плату в системный platform.sh (Как у Макса)
           UPGRADE_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/lib/upgrade/platform.sh"
