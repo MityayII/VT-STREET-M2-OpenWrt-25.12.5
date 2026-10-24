@@ -73,7 +73,7 @@ jobs:
           python3 - "$NETWORK_FILE" <<'PY'
           from pathlib import Path
           import sys
-          p = Path(sys.argv)
+          p = Path(sys.argv[1])
           s = p.read_text()
           
           # Шаг А: Врезаем разметку портов свитча под lan1
