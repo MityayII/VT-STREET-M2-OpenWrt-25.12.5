@@ -68,8 +68,8 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-               # 3. БРОНЕБОЙНЫЙ ПАТЧ ПОРТОВ И МАК-АДРЕСА: Python врезает плату в системный 02_network
-          NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
+          # 3. БРОНЕБОЙНЫЙ ПАТЧ ПОРТОВ И МАК-АДРЕСА: Python врезает плату в системный 02_network
+          NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/base-files/etc/board.d/02_network"
           python3 - "$NETWORK_FILE" <<'PY'
           from pathlib import Path
           import sys
