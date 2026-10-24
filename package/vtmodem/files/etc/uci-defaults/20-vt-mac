@@ -1,16 +1,13 @@
 #!/bin/sh
 
-# Подтягиваем системные библиотеки
-. /lib/functions/system.sh
-
-TAG="mac-force"
+TAG="mac-fixer"
 
 log()
 {
 	echo "<4>[$TAG]: $*" > /dev/kmsg
 }
 
-# ШАГ 1: Извлекаем вечный стабильный хэш кремния
+# ШАГ 1: Извлекаем вечный стабильный хэш кремния (Мгновенно, без ожидания USB)
 h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk '{print $1}')
 
 # Страховка на случай микросекундного сна чипа флеш-памяти
@@ -21,24 +18,16 @@ fi
 # Нарезаем наш уникальный вечный паспорт
 MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
 
-log "FORCING HARDWARE INTERFACES TO STABLE MAC: $MAC"
+log "PROVISIONING DETERMINISTIC NATIVE MAC: $MAC"
 
 # =========================================================================
-# ШАГ 2: ПРЯМАЯ ХИРУРГИЧЕСКАЯ КОРРЕКЦИЯ ЖИВЫХ ИНТЕРФЕЙСОВ ЯДРА
+# ШАГ 2: ЧИСТОКРОВНАЯ UCI-ФИКСАЦИЯ МАКСБАКСА (ДО СТАРТА СЕТЕВОГО СТЕКА)
 # =========================================================================
 
-# 1. Силой сдираем случайный мусор netifd с физического корня процессора
-ip link set dev eth0 down 2>/dev/null
-ip link set dev eth0 address "$MAC" 2>/dev/null
-ip link set dev eth0 up 2>/dev/null
-
-# 2. Силой сдираем случайный мусор netifd с виртуального моста br-lan
-ip link set dev br-lan down 2>/dev/null
-ip link set dev br-lan address "$MAC" 2>/dev/null
-ip link set dev br-lan up 2>/dev/null
-
-# 3. Дублируем в UCI, чтобы LuCI и веб-морда ровно подхватили цифры в статус-бар
+# Намертво прописываем адрес в логический интерфейс LAN
 uci set network.lan.macaddr="$MAC"
+
+# Намертво прописываем адрес в физическое DSA-устройство моста br-lan
 idx=0
 while uci -q get "network.@device[$idx]" >/dev/null 2>&1; do
 	if [ "$(uci -q get "network.@device[$idx].name")" = "br-lan" ]; then
@@ -47,7 +36,9 @@ while uci -q get "network.@device[$idx]" >/dev/null 2>&1; do
 	fi
 	idx=$((idx + 1))
 done
+
+# Жестко сохраняем изменения на постоянный диск роутера
 uci commit network
 
-log "Hardware interfaces configuration successfully locked to $MAC"
+log "UCI network configuration locked to $MAC. Netifd will apply it natively."
 exit 0
