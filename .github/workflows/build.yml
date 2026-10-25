@@ -104,6 +104,36 @@ jobs:
           p.write_text(s)
           PY
 
+          # Шаг Б: Нативный преинит-перехват МАК-адреса с фиксацией в оверлее sysinfo
+          mac_insert = (
+              '\tvertell,vt-mt7621d)\n'
+              '\t\t# Проверяем, что успела вычитать система из DTS/Factory\n'
+              '\t\tlocal current_mac=$(cat /sys/class/net/eth0/address 2>/dev/null)\n'
+              '\t\t\n'
+              '\t\t# Если там пусто или мусор ядра (нули/FF/рандомы fe:b8 или 20:08), включаем фоллбэк\n'
+              '\t\tif [ -z "$current_mac" ] || echo "$current_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|20:08:02|6e:57|fe:b8)"; then\n'
+              '\t\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
+              '\t\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
+              '\t\t\t\tlocal fallback_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
+              '\t\t\t\t\n'
+              '\t\t\t\t# Прописываем глобальный эталон для LuCI\n'
+              '\t\t\t\tucidef_set_interface_macaddr "lan" "$fallback_mac"\n'
+              '\t\t\t\tucidef_set_label_macaddr "$fallback_mac"\n'
+              '\t\t\t\t\n'
+              '\t\t\t\t# Нативное клеймо архитектуры ramips: пишем в sysinfo, откуда его заберёт netifd\n'
+              '\t\t\t\tmkdir -p /tmp/sysinfo\n'
+              '\t\t\t\techo "$fallback_mac" > /tmp/sysinfo/macaddr_eth0\n'
+              '\t\t\tfi\n'
+              '\t\tfi\n'
+              '\t\t;;\n'
+          )
+          if 'macaddr_eth0' not in s:
+              mac_idx = s.find('ramips_setup_macs()')
+              if mac_idx < 0:
+                  raise SystemExit('ERROR: ramips_setup_macs anchor not found')
+              case_idx = s.find('case', mac_idx)
+              next_mac_line = s.find('\n', case_idx) + 1
+              s = s[:next_mac_line] + mac_insert + s[next_mac_line:]
           
           # 4. ЗАЩИТА NAND-ОБНОВЛЕНИЯ: Python врезает плату в системный platform.sh (Как у Макса)
           UPGRADE_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/lib/upgrade/platform.sh"
