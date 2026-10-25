@@ -2,14 +2,42 @@
 
 TAG="mac-fixer"
 
-log()
-{
+log() {
 	echo "<4>[$TAG]: $*" > /dev/kmsg
 }
 
-# Мгновенно вынимаем хэш, чтобы просто вывести его в логи для нашего спокойствия
+# Извлекаем вечный стабильный хэш кремния из Factory-раздела
 h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk '{print $1}')
-MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
 
-log "NATIVE KERNEL INITIALIZATION COMPLETED. REPOSITORIES LOCKED TO: $MAC"
+if [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+	MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
+	
+	log "NATIVE KERNEL INITIALIZATION COMPLETED. LOCKING INTERFACES TO: $MAC"
+	
+	# === ЖЕСТКАЯ ПРИВЯЗКА К СЕТЕВОМУ СТЕКУ OPENWRT ===
+	# 1. Клеймим статус-бар LuCI
+	uci set network.lan.macaddr="$MAC"
+	
+	# 2. Перебиваем дефолтный мак-адрес устройства для netifd
+	uci set network.@device[0].macaddr="$MAC" 2>/dev/null
+	
+	# 3. Генерируем блоки аппаратных устройств для корня eth0 и моста br-lan,
+	# чтобы единственный DSA-порт lan1 унаследовал этот MAC автоматически
+	uci -q delete network.eth0_dev
+	uci set network.eth0_dev=device
+	uci set network.eth0_dev.name='eth0'
+	uci set network.eth0_dev.macaddr="$MAC"
+	
+	uci -q delete network.br_lan_dev
+	uci set network.br_lan_dev=device
+	uci set network.br_lan_dev.name='br-lan'
+	uci set network.br_lan_dev.macaddr="$MAC"
+	
+	# Применяем изменения в системе
+	uci commit network
+	log "UCI network configuration locked to $MAC. Netifd synchronized successfully."
+else
+	log "WARNING: mtd2 partition read error or empty. Default kernel random MAC left untouched."
+fi
+
 exit 0
