@@ -57,9 +57,19 @@ jobs:
           OPENWRT_DIR="$PWD/openwrt"
           REPO_DIR="$PWD"
 
-          # 1. Интеграция DTS платы
+          # 1. Интеграция DTS платы + Включение нативного DSA автонаследования
           cp "$REPO_DIR/port/mt7621_vertell_vt-mt7621d.dts" \
             "$OPENWRT_DIR/target/linux/ramips/dts/mt7621_vertell_vt-mt7621d.dts"
+          python3 - "$OPENWRT_DIR/target/linux/ramips/dts/mt7621_vertell_vt-mt7621d.dts" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          s = p.read_text()
+          # Находим узел интерфейса LAN внутри DTS и вшиваем туда аппаратную ссылку на родительский eth0
+          if 'label-macdevice' not in s:
+              s = s.replace('device = &ethernet;', 'device = &ethernet;\n\t\tlabel-macdevice = &eth0;', 1)
+              p.write_text(s)
+          PY
 
           # 2. Интеграция Профиля платы в mt7621.mk
           PROFILE_FILE="$OPENWRT_DIR/target/linux/ramips/image/mt7621.mk"
