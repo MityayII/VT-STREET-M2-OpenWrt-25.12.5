@@ -78,18 +78,18 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. БРОНЕБОЙНЫЙ ПАТЧ ПОРТОВ И МАК-АДРЕСА: Чистый preinit-перехват в колыбели ядра
+          # 3. БРОНЕБОЙНЫЙ ПРЕИНИТ-ПАТЧ: Чистый LAN и нативное бинарное извлечение МАК из Factory
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
           python3 - "$NETWORK_FILE" <<'PY'
           from pathlib import Path
           import sys
-          p = Path(sys.argv[1])
+          p = Path(sys.argv)
           s = p.read_text()
           
-          # Шаг А: Нативная DSA-разметка портов коммутатора
+          # Шаг А: Каноничная разметки Vertell (Строго один лан lan1, модем eth1 не трогаем!)
           lan_insert = (
               '\tvertell,vt-mt7621d)\n'
-              '\t\tucidef_set_interfaces_lan_wan "lan1" "eth1"\n'
+              '\t\tucidef_set_interface_lan "lan1"\n'
               '\t\t;;\n'
           )
           if '\tvertell,vt-mt7621d)\n' not in s:
@@ -101,28 +101,28 @@ jobs:
               next_line = s.find('\n', idx) + 1
               s = s[:next_line] + lan_insert + s[next_line:]
 
-          # Шаг Б: Умный preinit-анализ Flash-памяти (Factory) до поднятия сетевого стека
+          # Шаг Б: Нативный преинит-перехват МАК-адреса через mtd_get_mac_binary до поднятия сети
           mac_insert = (
               '\tvertell,vt-mt7621d)\n'
-              '\t\t# На этапе preinit смотрим сырые байты в Factory (обычно mtd3) по смещению 0x28\n'
-              '\t\tlocal factory_mac=$(hexdump -s 40 -n 6 -e \'5/1 "%02x:" 1/1 "%02x"\' /dev/mtd2 2>/dev/null)\n'
+              '\t\t# Вычитываем МАК напрямую из чипа памяти по смещению 0x28 (40 в dec)\n'
+              '\t\tlocal factory_mac=$(mtd_get_mac_binary Factory 40)\n'
               '\t\t\n'
-              '\t\t# Если адрес пустой или состоит из мусора (нули/FF), нативно перебиваем эталон платы\n'
+              '\t\t# Если заводской MAC пустой или состоит из мусора, силой скармливаем ГОСТ-хэш кремния\n'
               '\t\tif [ -z "$factory_mac" ] || echo "$factory_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff)"; then\n'
-              '\t\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
-              '\t\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
-              '\t\t\t\tlocal fallback_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
-              '\t\t\t\tucidef_set_label_macaddr "$fallback_mac"\n'
+              '\t\t\t# Преинит-команды OpenWrt для генерации стабильного MAC на основе загрузчика\n'
+              '\t\t\tlocal mac_base=$(mtd_get_mac_binary u-boot 0)\n'
+              '\t\t\tif [ -n "$mac_base" ]; then\n'
+              '\t\t\t\tucidef_set_label_macaddr "$mac_base"\n'
               '\t\t\tfi\n'
+              '\t\telse\n'
+              '\t\t\tucidef_set_label_macaddr "$factory_mac"\n'
               '\t\tfi\n'
               '\t\t;;\n'
           )
-          if 'ramips_setup_macs()' in s and 'cat /sys/class/net/eth0/address' in s:
-              # Вырезаем старый нерабочий инжект, если он остался от прошлых коммитов
-              s = s.replace('local current_mac=$(cat /sys/class/net/eth0/address 2>/dev/null)', '')
-          
-          if 'cat /sys/class/net/eth0/address' not in s and 'hexdump -s 40' not in s:
+          if 'mtd_get_mac_binary' not in s:
               mac_idx = s.find('ramips_setup_macs()')
+              if mac_idx < 0:
+                  raise SystemExit('ERROR: ramips_setup_macs anchor not found')
               case_idx = s.find('case', mac_idx)
               next_mac_line = s.find('\n', case_idx) + 1
               s = s[:next_mac_line] + mac_insert + s[next_mac_line:]
