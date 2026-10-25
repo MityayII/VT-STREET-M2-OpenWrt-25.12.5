@@ -78,12 +78,15 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. КАННОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
+            # 3. КАННОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
-          python3 - "$NETWORK_FILE" <<'PY'
+          export TARGET_NETWORK_FILE="$NETWORK_FILE"
+          python3 - <<'PY'
+          import os
           from pathlib import Path
-          import sys
-          p = Path(sys.argv)
+          
+          # Читаем файл по пути из переменной окружения раннера
+          p = Path(os.environ['TARGET_NETWORK_FILE'])
           s = p.read_text()
           
           # Шаг А: Привязываем единственный физический порт к локальной сети LAN
