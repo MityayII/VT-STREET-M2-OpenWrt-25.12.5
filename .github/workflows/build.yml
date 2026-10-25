@@ -78,15 +78,15 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. БРОНЕБОЙНЫЙ ПРЕИНИТ-ПАТЧ: Чистый LAN и нативное бинарное извлечение МАК из Factory
+          # 3. КАННОНИЧНЫЙ ПАТЧ ПОРТОВ: Чистый LAN и принудительное UCI-клеймение портов для netifd
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
           python3 - "$NETWORK_FILE" <<'PY'
           from pathlib import Path
           import sys
-          p = Path(sys.argv)
+          p = Path(sys.argv[1])
           s = p.read_text()
           
-          # Шаг А: Каноничная разметки Vertell (Строго один лан lan1, модем eth1 не трогаем!)
+          # Шаг А: Врезаем разметку портов под единственный lan1 (Каноничный чистый LAN-инжектор)
           lan_insert = (
               '\tvertell,vt-mt7621d)\n'
               '\t\tucidef_set_interface_lan "lan1"\n'
@@ -101,25 +101,29 @@ jobs:
               next_line = s.find('\n', idx) + 1
               s = s[:next_line] + lan_insert + s[next_line:]
 
-          # Шаг Б: Нативный преинит-перехват МАК-адреса через mtd_get_mac_binary до поднятия сети
+          # Шаг Б: Жесткое клеймение MAC-адреса через автоматическую генерацию config device для netifd
           mac_insert = (
               '\tvertell,vt-mt7621d)\n'
-              '\t\t# Вычитываем МАК напрямую из чипа памяти по смещению 0x28 (40 в dec)\n'
-              '\t\tlocal factory_mac=$(mtd_get_mac_binary Factory 40)\n'
+              '\t\t# Запрашиваем то, что ядро успело считать из DTS/Factory (eth0)\n'
+              '\t\tlocal current_mac=$(cat /sys/class/net/eth0/address 2>/dev/null)\n'
               '\t\t\n'
-              '\t\t# Если заводской MAC пустой или состоит из мусора, силой скармливаем ГОСТ-хэш кремния\n'
-              '\t\tif [ -z "$factory_mac" ] || echo "$factory_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff)"; then\n'
-              '\t\t\t# Преинит-команды OpenWrt для генерации стабильного MAC на основе загрузчика\n'
-              '\t\t\tlocal mac_base=$(mtd_get_mac_binary u-boot 0)\n'
-              '\t\t\tif [ -n "$mac_base" ]; then\n'
-              '\t\t\t\tucidef_set_label_macaddr "$mac_base"\n'
+              '\t\t# Если заводской MAC пустой или мусорный (нули/FF/рандом ядра), включаем принудительный фоллбэк\n'
+              '\t\tif [ -z "$current_mac" ] || echo "$current_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|20:08:02|6e:57)"; then\n'
+              '\t\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
+              '\t\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
+              '\t\t\t\tlocal fallback_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
+              '\t\t\t\t\n'
+              '\t\t\t\t# Перебиваем глобальный мак-эталон системы\n'
+              '\t\t\t\tucidef_set_label_macaddr "$fallback_mac"\n'
+              '\t\t\t\t\n'
+              '\t\t\t\t# Намертво заставляем сетевой менеджер клеймить физический корень eth0 и мост br-lan\n'
+              '\t\t\t\tucidef_set_network_device_mac "eth0" "$fallback_mac"\n'
+              '\t\t\t\tucidef_set_network_device_mac "br-lan" "$fallback_mac"\n'
               '\t\t\tfi\n'
-              '\t\telse\n'
-              '\t\t\tucidef_set_label_macaddr "$factory_mac"\n'
               '\t\tfi\n'
               '\t\t;;\n'
           )
-          if 'mtd_get_mac_binary' not in s:
+          if 'ucidef_set_network_device_mac' not in s:
               mac_idx = s.find('ramips_setup_macs()')
               if mac_idx < 0:
                   raise SystemExit('ERROR: ramips_setup_macs anchor not found')
