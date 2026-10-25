@@ -105,7 +105,7 @@ jobs:
           mac_insert = (
               '\tvertell,vt-mt7621d)\n'
               '\t\t# На этапе preinit смотрим сырые байты в Factory (обычно mtd3) по смещению 0x28\n'
-              '\t\tlocal factory_mac=$(hexdump -s 40 -n 6 -e \'5/1 "%02x:" 1/1 "%02x"\' /dev/mtd3 2>/dev/null)\n'
+              '\t\tlocal factory_mac=$(hexdump -s 40 -n 6 -e \'5/1 "%02x:" 1/1 "%02x"\' /dev/mtd2 2>/dev/null)\n'
               '\t\t\n'
               '\t\t# Если адрес пустой или состоит из мусора (нули/FF), нативно перебиваем эталон платы\n'
               '\t\tif [ -z "$factory_mac" ] || echo "$factory_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff)"; then\n'
