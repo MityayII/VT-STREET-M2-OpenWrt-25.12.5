@@ -101,16 +101,23 @@ jobs:
               next_line = s.find('\n', idx) + 1
               s = s[:next_line] + lan_insert + s[next_line:]
 
-          # Шаг Б: Универсальный инжектор генератора МАК-адреса из кремния флешки mtd2
+          # Шаг Б: Умный выбор МАК-адреса (Заводской эталон vs Динамический ГОСТ-хэш из mtd2)
           mac_insert = (
               '\tvertell,vt-mt7621d)\n'
-              '\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
-              '\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
-              '\t\t\tlan_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
+              '\t\t# Проверяем, что подтянуло ядро из DTS/Factory по умолчанию\n'
+              '\t\tlocal current_mac=$(cat /sys/class/net/eth0/address 2>/dev/null)\n'
+              '\t\t\n'
+              '\t\t# Если адрес некорректный (пустой, полностью нули или маскирован), включаем фоллбэк\n'
+              '\t\tif [ -z "$current_mac" ] || echo "$current_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff)"; then\n'
+              '\t\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
+              '\t\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
+              '\t\t\t\tlocal fallback_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
+              '\t\t\t\tucidef_set_label_macaddr "$fallback_mac"\n'
+              '\t\t\tfi\n'
               '\t\tfi\n'
               '\t\t;;\n'
           )
-          if 'lan_mac="02:' not in s:
+          if 'cat /sys/class/net/eth0/address' not in s:
               mac_idx = s.find('ramips_setup_macs()')
               if mac_idx < 0:
                   raise SystemExit('ERROR: ramips_setup_macs anchor not found')
