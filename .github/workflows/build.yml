@@ -125,13 +125,11 @@ jobs:
           # Теперь defconfig прочитает его и принудительно скомпилирует пакет vtmodem!
           echo "CONFIG_PACKAGE_vtmodem=y" >> .config
 
-      - name: Clean vtmodem package
-        working-directory: openwrt
-        run: |
-          make package/vtmodem/clean          
-          
+    
           make defconfig
-          
+
+      
+          make package/vtmodem/clean          
 
       - name: Build OpenWrt Firmware
         run: |
