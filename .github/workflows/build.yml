@@ -78,7 +78,7 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. КАННОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
+          # 3. КАНОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
           export TARGET_NETWORK_FILE="$NETWORK_FILE"
           python3 - <<'PY'
@@ -102,56 +102,8 @@ jobs:
                   raise SystemExit('ERROR: Switch board case anchor not found in 02_network')
               next_line = s_net.find('\n', idx) + 1
               s_net = s_net[:next_line] + lan_insert + s_net[next_line:]
-
-          # Шаг Б: Преинит-генерация постоянного оверлея МАК-адреса без вызова 01_mac
-          mac_insert = (
-              '\tvertell,vt-mt7621d)\n'
-              '\t\tlocal current_mac=$(cat /sys/class/net/eth0/address 2>/dev/null)\n'
-              '\t\tif [ -z "$current_mac" ] || echo "$current_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|20:08:02|6e:57|fe:b8|92:72)"; then\n'
-              '\t\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
-              '\t\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
-              '\t\t\t\tlocal fallback_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
-              '\t\t\t\tucidef_set_interface_macaddr "lan" "$fallback_mac"\n'
-              '\t\t\t\tucidef_set_label_macaddr "$fallback_mac"\n'
-              '\t\t\t\t\n'
-              '\t\t\t\t# Пишем МАК в lib/firmware, откуда сетевой стек заберёт его нативно при каждом ребуте\n'
-              '\t\t\t\tmkdir -p /lib/firmware\n'
-              '\t\t\t\techo "$fallback_mac" > /lib/firmware/macaddr_eth0\n'
-              '\t\t\tfi\n'
-              '\t\tfi\n'
-              '\t\t;;\n'
-          )
-          if 'macaddr_eth0' not in s_net:
-              mac_idx = s_net.find('ramips_setup_macs()')
-              if mac_idx < 0:
-                  raise SystemExit('ERROR: ramips_setup_macs anchor not found')
-              case_idx = s_net.find('case', mac_idx)
-              next_mac_line = s_net.find('\n', case_idx) + 1
-              s_net = s_net[:next_mac_line] + mac_insert + s_net[next_mac_line:]
               
           p_net.write_text(s_net)
-          PY
-          
-          # 4. ЗАЩИТА NAND-ОБНОВЛЕНИЯ: Python врезает плату в системный platform.sh (Как у Макса)
-          UPGRADE_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/lib/upgrade/platform.sh"
-          python3 - "$UPGRADE_FILE" <<'PY'
-          from pathlib import Path
-          import sys
-          p = Path(sys.argv[1])
-          s = p.read_text()
-          entry = '\tvertell,vt-mt7621d|\\\n'
-          if entry not in s:
-              needle = '\tcase "$board" in\n\tampedwireless,ally-00x19k|\\\n'
-              insert = '\tcase "$board" in\n' + entry + '\tampedwireless,ally-00x19k|\\\n'
-              if needle not in s:
-                  raise SystemExit('ERROR: NAND upgrade case anchor not found in platform.sh')
-              s = s.replace(needle, insert, 1)
-              p.write_text(s)
-
-          start = s.find(entry)
-          end = s.find('\n\t\t;;', start)
-          if start < 0 or end < 0 or 'nand_do_upgrade "$1"' not in s[start:end]:
-              raise SystemExit('ERROR: VT-STREET-M2 is not routed to nand_do_upgrade')
           PY
 
           # 5. ИСПРАВЛЕНО: Копируем наш кастомный нативный пакет vtmodem напрямую в дерево OpenWrt
