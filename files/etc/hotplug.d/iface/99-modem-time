@@ -3,10 +3,32 @@
 # Проверяем, что событие прилетело именно от интерфейса сотового модема
 # и что интерфейс успешно поднялся (статус up)
 if [ "$INTERFACE" = "modem" ] && [ "$ACTION" = "ifup" ]; then
-	logger -t "hotplug-time" "Modem linked up! Forcing immediate sysntpd resync..."
-	
-	# Мгновенно пинаем службу времени, чтобы она не ждала планового часа
-	/etc/init.d/sysntpd restart 2>/dev/null
+    logger -t "hotplug-time" "Modem linked up! Forcing immediate sysntpd resync..."
+    
+    # Мгновенно пинаем службу времени
+    /etc/init.d/sysntpd restart 2>/dev/null
+
+    # === ДИНАМИЧЕСКАЯ НАСТРОЙКА LED ===
+    # Переменная $DEVICE содержит актуальное физическое имя (eth1, wwan0, usb0)
+    if [ -n "$DEVICE" ]; then
+        logger -t "hotplug-led" "Binding LED 'net' to physical device: $DEVICE"
+        
+        # Проверяем, существует ли реально такое устройство в системе
+        if [ -d "/sys/class/net/$DEVICE" ]; then
+            uci set system.led_net=led
+            uci set system.led_net.name='net'
+            uci set system.led_net.sysfs='green:wan'
+            uci set system.led_net.trigger='netdev'
+            uci set system.led_net.dev="$DEVICE"   # <--- Вот сюда подставляем актуальное имя
+            uci add_list system.led_net.mode='link'
+            uci add_list system.led_net.mode='tx'
+            uci add_list system.led_net.mode='rx'
+            uci commit system
+            
+            # Перезапускаем службу LED для применения
+            /etc/init.d/led restart 2>/dev/null
+        fi
+    fi
 fi
 
 exit 0
