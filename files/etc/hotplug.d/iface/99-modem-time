@@ -15,11 +15,14 @@ if [ "$INTERFACE" = "modem" ] && [ "$ACTION" = "ifup" ]; then
         
         # Проверяем, существует ли реально такое устройство в системе
         if [ -d "/sys/class/net/$DEVICE" ]; then
+            # Удаляем старую секцию, чтобы не было дублей при перезапуске модема
+            uci -q delete system.led_net
+            
             uci set system.led_net=led
             uci set system.led_net.name='net'
             uci set system.led_net.sysfs='green:wan'
             uci set system.led_net.trigger='netdev'
-            uci set system.led_net.dev="$DEVICE"   # <--- Вот сюда подставляем актуальное имя
+            uci set system.led_net.dev="$DEVICE"
             uci add_list system.led_net.mode='link'
             uci add_list system.led_net.mode='tx'
             uci add_list system.led_net.mode='rx'
