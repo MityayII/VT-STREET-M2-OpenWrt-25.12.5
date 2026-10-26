@@ -6,10 +6,6 @@ log() {
     echo "<4>[$TAG]: $*" > /dev/kmsg
 }
 
-# Срабатываем только на поднятие/обновление LAN
-[ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifupdate" ] || exit 0
-[ "$INTERFACE" = "lan" ] || exit 0
-
 # === 1. Чтение заводского MAC по смещению 0x28 ===
 OFFSET=40
 mac_raw=$(dd if=/dev/mtd2 bs=1 skip=$OFFSET count=6 2>/dev/null | hexdump -v -e '6/1 "%02x"')
@@ -37,22 +33,11 @@ if [ -z "$MAC" ]; then
     fi
 fi
 
-# === 3. Применяем MAC на каждом ifup ===
-# Если MAC уже совпадает — ничего не делаем (избегаем лишних down/up)
-CUR_ETH=$(cat /sys/class/net/eth0/address 2>/dev/null)
-if [ "$CUR_ETH" = "$MAC" ]; then
-    log "MAC already $MAC on eth0, no change needed."
-    exit 0
+# === 3. Только запись в UCI, без ip link ===
+if [ -n "$MAC" ]; then
+    uci set network.lan.macaddr="$MAC"
+    uci commit network
+    log "UCI set: network.lan.macaddr=$MAC"
 fi
-
-for dev in lan1 eth0 br-lan; do
-    if [ -d "/sys/class/net/$dev" ]; then
-        ip link set dev "$dev" down 2>/dev/null
-        ip link set dev "$dev" address "$MAC" 2>/dev/null
-        ip link set dev "$dev" up 2>/dev/null
-    fi
-done
-
-log "Applied MAC $MAC on lan1/eth0/br-lan"
 
 exit 0
