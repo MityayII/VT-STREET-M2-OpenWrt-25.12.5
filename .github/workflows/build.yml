@@ -78,18 +78,17 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. АРХИТЕКТУРНЫЙ ПАТЧ OPENWRT: Чистый LAN и канонический preinit-перехват MAC в 01_mac
+          # 3. КАННОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
-          MAC_FILE="$OPENWRT_DIR/target/linux/ramips/base-files/etc/board.d/01_mac"
           export TARGET_NETWORK_FILE="$NETWORK_FILE"
-          export TARGET_MAC_FILE="$MAC_FILE"
           python3 - <<'PY'
           import os
           from pathlib import Path
           
-          # Шаг А: Каноничная разметка портов Vertell (Строго один лан lan1 в 02_network)
           p_net = Path(os.environ['TARGET_NETWORK_FILE'])
           s_net = p_net.read_text()
+          
+          # Шаг А: Привязываем единственный физический порт к локальной сети LAN
           lan_insert = (
               '\tvertell,vt-mt7621d)\n'
               '\t\tucidef_set_interface_lan "lan1"\n'
@@ -99,33 +98,38 @@ jobs:
               idx = s_net.find('case "$board" in')
               if idx < 0:
                   idx = s_net.find('case $board in')
+              if idx < 0:
+                  raise SystemExit('ERROR: Switch board case anchor not found in 02_network')
               next_line = s_net.find('\n', idx) + 1
               s_net = s_net[:next_line] + lan_insert + s_net[next_line:]
-              p_net.write_text(s_net)
-          
-          # Шаг Б: Врезаем нативную преинит-команду mtd_get_mac_binary в 01_mac
-          p_mac = Path(os.environ['TARGET_MAC_FILE'])
-          s_mac = p_mac.read_text()
-          
-          mac_hook = (
+
+          # Шаг Б: Преинит-генерация постоянного оверлея МАК-адреса без вызова 01_mac
+          mac_insert = (
               '\tvertell,vt-mt7621d)\n'
-              '\t\tlocal mac=$(mtd_get_mac_binary Factory 40)\n'
-              '\t\tif [ -z "$mac" ] || echo "$mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff)"; then\n'
-              '\t\t\tmac=$(mtd_get_mac_binary u-boot 0)\n'
-              '\t\tfi\n'
-              '\t\tif [ -n "$mac" ]; then\n'
-              '\t\t\tlabel_macaddr_set "$mac"\n'
+              '\t\tlocal current_mac=$(cat /sys/class/net/eth0/address 2>/dev/null)\n'
+              '\t\tif [ -z "$current_mac" ] || echo "$current_mac" | grep -qE "^(00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|20:08:02|6e:57|fe:b8|92:72)"; then\n'
+              '\t\t\tlocal h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk "{print \$1}")\n'
+              '\t\t\tif [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then\n'
+              '\t\t\t\tlocal fallback_mac="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"\n'
+              '\t\t\t\tucidef_set_interface_macaddr "lan" "$fallback_mac"\n'
+              '\t\t\t\tucidef_set_label_macaddr "$fallback_mac"\n'
+              '\t\t\t\t\n'
+              '\t\t\t\t# Пишем МАК в lib/firmware, откуда сетевой стек заберёт его нативно при каждом ребуте\n'
+              '\t\t\t\tmkdir -p /lib/firmware\n'
+              '\t\t\t\techo "$fallback_mac" > /lib/firmware/macaddr_eth0\n'
+              '\t\t\tfi\n'
               '\t\tfi\n'
               '\t\t;;\n'
           )
-          if 'vertell,vt-mt7621d)' not in s_mac:
-              idx_mac = s_mac.find('ramips_board_mac() {')
-              case_idx = s_mac.find('case "$board" in', idx_mac)
-              if case_idx < 0:
-                  case_idx = s_mac.find('case $board in', idx_mac)
-              next_line_mac = s_mac.find('\n', case_idx) + 1
-              s_mac = s_mac[:next_line_mac] + mac_hook + s_mac[next_line_mac:]
-              p_mac.write_text(s_mac)
+          if 'macaddr_eth0' not in s_net:
+              mac_idx = s_net.find('ramips_setup_macs()')
+              if mac_idx < 0:
+                  raise SystemExit('ERROR: ramips_setup_macs anchor not found')
+              case_idx = s_net.find('case', mac_idx)
+              next_mac_line = s_net.find('\n', case_idx) + 1
+              s_net = s_net[:next_mac_line] + mac_insert + s_net[next_mac_line:]
+              
+          p_net.write_text(s_net)
           PY
           
           # 4. ЗАЩИТА NAND-ОБНОВЛЕНИЯ: Python врезает плату в системный platform.sh (Как у Макса)
