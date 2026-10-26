@@ -16,8 +16,11 @@ define Build/Compile
 endef
 
 define Package/vtmodem/install
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/etc/uci-defaults/20-vt-mac $(1)/etc/uci-defaults/20-vt-mac
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/etc/init.d/vtmac $(1)/etc/init.d/vtmac
+
+	$(INSTALL_DIR) $(1)/etc/rc.d
+	ln -sf ../init.d/vtmac $(1)/etc/rc.d/S99vtmac
 endef
 
 $(eval $(call BuildPackage,vtmodem))
