@@ -6,21 +6,16 @@ log() {
     echo "<4>[$TAG]: $*" > /dev/kmsg
 }
 
-# === 0. Защита от повторного запуска (для ручных тестов) ===
-CUR_MAC=$(uci -q get network.lan.macaddr)
-if [ -n "$CUR_MAC" ] && [ "$(echo "$CUR_MAC" | cut -c1-3)" = "02:" ]; then
-    log "MAC already set in UCI ($CUR_MAC), skipping."
-    exit 0
-fi
+# Срабатываем только на поднятие/обновление LAN
+[ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifupdate" ] || exit 0
+[ "$INTERFACE" = "lan" ] || exit 0
 
 # === 1. Чтение заводского MAC по смещению 0x28 ===
-# 0x28 = 40 в десятичной системе
 OFFSET=40
 mac_raw=$(dd if=/dev/mtd2 bs=1 skip=$OFFSET count=6 2>/dev/null | hexdump -v -e '6/1 "%02x"')
 
 MAC=""
 if [ -n "$mac_raw" ] && [ "$mac_raw" != "ffffffffffff" ] && [ "$mac_raw" != "000000000000" ]; then
-    # Проверяем, что это unicast (младший бит первого байта = 0)
     first_byte=$(echo "$mac_raw" | cut -c1-2)
     if [ $((0x$first_byte & 1)) -eq 0 ]; then
         MAC=$(echo "$mac_raw" | sed 's/../&:/g;s/:$//')
@@ -35,39 +30,29 @@ if [ -z "$MAC" ]; then
     h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk '{print $1}')
     if [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
         MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
-        log "FACTORY MAC MISSING. SILICON HASH FALLBACK. MAC: $MAC"
+        log "SILICON HASH FALLBACK. MAC: $MAC"
     else
         log "WARNING: mtd2 read error or empty. MAC unchanged."
         exit 0
     fi
 fi
 
-# === 3. Опускаем интерфейсы ПЕРЕД сменой MAC (обход EBUSY) ===
-for dev in br-lan lan1 eth0; do
-    if [ -d "/sys/class/net/$dev" ]; then
-        ip link set dev "$dev" down 2>/dev/null
-    fi
-done
+# === 3. Применяем MAC на каждом ifup ===
+# Если MAC уже совпадает — ничего не делаем (избегаем лишних down/up)
+CUR_ETH=$(cat /sys/class/net/eth0/address 2>/dev/null)
+if [ "$CUR_ETH" = "$MAC" ]; then
+    log "MAC already $MAC on eth0, no change needed."
+    exit 0
+fi
 
-# === 4. Меняем MAC на физическом порту и бридже ===
 for dev in lan1 eth0 br-lan; do
     if [ -d "/sys/class/net/$dev" ]; then
-        ip link set dev "$dev" address "$MAC" 2>/dev/null && \
-        log "Set MAC on $dev to $MAC"
-    fi
-done
-
-# === 5. Поднимаем обратно ===
-for dev in eth0 lan1 br-lan; do
-    if [ -d "/sys/class/net/$dev" ]; then
+        ip link set dev "$dev" down 2>/dev/null
+        ip link set dev "$dev" address "$MAC" 2>/dev/null
         ip link set dev "$dev" up 2>/dev/null
     fi
 done
 
-# === 6. Пишем в UCI для LuCI ===
-uci set network.lan.macaddr="$MAC"
-uci commit network
-
-log "Final MAC applied: $MAC"
+log "Applied MAC $MAC on lan1/eth0/br-lan"
 
 exit 0
