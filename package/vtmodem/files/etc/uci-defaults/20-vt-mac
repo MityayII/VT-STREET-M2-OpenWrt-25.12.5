@@ -3,35 +3,71 @@
 TAG="mac-fixer"
 
 log() {
-	echo "<4>[$TAG]: $*" > /dev/kmsg
+    echo "<4>[$TAG]: $*" > /dev/kmsg
 }
 
-# Считываем чистый хэш из проснувшейся флешки
-h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk '{print $1}')
-
-if [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
-	MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
-	
-	log "SILICON HASH DETECTED. ENFORCING HARDWARE OVERRIDE TO: $MAC"
-	
-	# === ПРЯМАЯ СИЛОВАЯ ПОДМЕНА В ОПЕРАТИВНОЙ ПАМЯТИ ЯДРА ===
-	# Опускаем мост, меняем физический адрес родительского интерфейса и поднимаем обратно
-	ip link set dev br-lan down 2>/dev/null
-	ip link set dev eth0 down 2>/dev/null
-	
-	ip link set dev eth0 address "$MAC" 2>/dev/null
-	ip link set dev br-lan address "$MAC" 2>/dev/null
-	
-	ip link set dev eth0 up 2>/dev/null
-	ip link set dev br-lan up 2>/dev/null
-	
-	# Прописываем этот же адрес в конфиг, чтобы LuCI отображала его в статус-баре
-	uci set network.lan.macaddr="$MAC"
-	uci commit network
-	
-	log "Hardware registers eth0/br-lan forced to $MAC."
-else
-	log "WARNING: mtd2 partition read error. Random kernel MAC left untouched."
+# === 0. Защита от повторного запуска (для ручных тестов) ===
+CUR_MAC=$(uci -q get network.lan.macaddr)
+if [ -n "$CUR_MAC" ] && [ "$(echo "$CUR_MAC" | cut -c1-3)" = "02:" ]; then
+    log "MAC already set in UCI ($CUR_MAC), skipping."
+    exit 0
 fi
+
+# === 1. Чтение заводского MAC по смещению 0x28 ===
+# 0x28 = 40 в десятичной системе
+OFFSET=40
+mac_raw=$(dd if=/dev/mtd2 bs=1 skip=$OFFSET count=6 2>/dev/null | hexdump -v -e '6/1 "%02x"')
+
+MAC=""
+if [ -n "$mac_raw" ] && [ "$mac_raw" != "ffffffffffff" ] && [ "$mac_raw" != "000000000000" ]; then
+    # Проверяем, что это unicast (младший бит первого байта = 0)
+    first_byte=$(echo "$mac_raw" | cut -c1-2)
+    if [ $((0x$first_byte & 1)) -eq 0 ]; then
+        MAC=$(echo "$mac_raw" | sed 's/../&:/g;s/:$//')
+        log "FACTORY MAC FOUND at offset 0x28: $MAC"
+    else
+        log "Offset 0x28 contains multicast MAC ($mac_raw), ignoring."
+    fi
+fi
+
+# === 2. Fallback: хэш от первых 64 байт mtd2 ===
+if [ -z "$MAC" ]; then
+    h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk '{print $1}')
+    if [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+        MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
+        log "FACTORY MAC MISSING. SILICON HASH FALLBACK. MAC: $MAC"
+    else
+        log "WARNING: mtd2 read error or empty. MAC unchanged."
+        exit 0
+    fi
+fi
+
+# === 3. Опускаем интерфейсы ПЕРЕД сменой MAC (обход EBUSY) ===
+for dev in br-lan lan1 eth0; do
+    if [ -d "/sys/class/net/$dev" ]; then
+        ip link set dev "$dev" down 2>/dev/null
+    fi
+done
+
+# === 4. Меняем MAC на физическом порту и бридже ===
+for dev in lan1 eth0 br-lan; do
+    if [ -d "/sys/class/net/$dev" ]; then
+        ip link set dev "$dev" address "$MAC" 2>/dev/null && \
+        log "Set MAC on $dev to $MAC"
+    fi
+done
+
+# === 5. Поднимаем обратно ===
+for dev in eth0 lan1 br-lan; do
+    if [ -d "/sys/class/net/$dev" ]; then
+        ip link set dev "$dev" up 2>/dev/null
+    fi
+done
+
+# === 6. Пишем в UCI для LuCI ===
+uci set network.lan.macaddr="$MAC"
+uci commit network
+
+log "Final MAC applied: $MAC"
 
 exit 0
