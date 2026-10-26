@@ -1,0 +1,48 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=10
+
+start() {
+    # Ждём, пока netifd завершит настройку сети и DSA-портов
+    sleep 3
+
+    # === 1. Чтение заводского MAC по смещению 0x28 ===
+    OFFSET=40
+    mac_raw=$(dd if=/dev/mtd2 bs=1 skip=$OFFSET count=6 2>/dev/null | hexdump -v -e '6/1 "%02x"')
+
+    MAC=""
+    if [ -n "$mac_raw" ] && [ "$mac_raw" != "ffffffffffff" ] && [ "$mac_raw" != "000000000000" ]; then
+        first_byte=$(echo "$mac_raw" | cut -c1-2)
+        # Проверка на unicast (младший бит первого байта = 0)
+        if [ $((0x$first_byte & 1)) -eq 0 ]; then
+            MAC=$(echo "$mac_raw" | sed 's/../&:/g;s/:$//')
+            echo "vtmac: FACTORY MAC FOUND at offset 0x28: $MAC" > /dev/kmsg
+        else
+            echo "vtmac: Offset 0x28 contains multicast MAC ($mac_raw), ignoring." > /dev/kmsg
+        fi
+    fi
+
+    # === 2. Fallback: хэш от первых 64 байт mtd2 ===
+    if [ -z "$MAC" ]; then
+        h=$(head -c 64 /dev/mtd2 2>/dev/null | sha256sum | awk '{print $1}')
+        if [ -n "$h" ] && [ "$h" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+            MAC="02:$(echo "$h" | cut -c3-4):$(echo "$h" | cut -c5-6):$(echo "$h" | cut -c7-8):$(echo "$h" | cut -c9-10):$(echo "$h" | cut -c11-12)"
+            echo "vtmac: SILICON HASH FALLBACK. MAC: $MAC" > /dev/kmsg
+        else
+            echo "vtmac: WARNING: mtd2 read error or empty. MAC unchanged." > /dev/kmsg
+            exit 0
+        fi
+    fi
+
+    # === 3. Применяем MAC к eth0, lan1 и br-lan ===
+    # Делаем это после загрузки сети, без down/up, чтобы не рвать бридж
+    for dev in eth0 lan1 br-lan; do
+        if [ -d "/sys/class/net/$dev" ]; then
+            ip link set dev "$dev" address "$MAC" 2>/dev/null && \
+            echo "vtmac: Set MAC on $dev to $MAC" > /dev/kmsg
+        fi
+    done
+
+    echo "vtmac: Final MAC applied: $MAC" > /dev/kmsg
+}
