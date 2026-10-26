@@ -17,10 +17,10 @@ endef
 
 define Package/vtmodem/install
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/etc/init.d/vtmac $(1)/etc/init.d/vtmac
+	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/vtmac $(1)/etc/init.d/vtmac
 
 	$(INSTALL_DIR) $(1)/etc/rc.d
-	ln -sf ../init.d/vtmac $(1)/etc/rc.d/S99vtmac
+	$(LN) ../init.d/vtmac $(1)/etc/rc.d/S99vtmac
 endef
 
 $(eval $(call BuildPackage,vtmodem))
