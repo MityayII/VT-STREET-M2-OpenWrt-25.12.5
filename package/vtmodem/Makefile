@@ -16,8 +16,8 @@ define Build/Compile
 endef
 
 define Package/vtmodem/install
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-	$(INSTALL_BIN) ./files/etc/hotplug.d/iface/20-vt-mac $(1)/etc/hotplug.d/iface/20-vt-mac
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/etc/uci-defaults/20-vt-mac $(1)/etc/uci-defaults/20-vt-mac
 endef
 
 $(eval $(call BuildPackage,vtmodem))
