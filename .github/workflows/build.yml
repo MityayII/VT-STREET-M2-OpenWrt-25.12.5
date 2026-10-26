@@ -1,4 +1,4 @@
-name: Build Pure OpenWrt for VT-STREET-M2
+name: VT-STREET-M2-OpenWrt-25.12.5
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pure-openwrt-build-${{ github.ref_name }}
+  group: openwrt-build-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
       OPENWRT_TAG: v25.12.5
 
     steps:
-      - name: Checkout Pure Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Install OpenWrt build dependencies
@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: openwrt/dl
-          key: pure-openwrt-dl-${{ env.OPENWRT_TAG }}
+          key: vt-street-m2-dl-${{ env.OPENWRT_TAG }}
 
       - name: Inject fildunsky feed and install packages
         working-directory: openwrt
@@ -57,28 +57,18 @@ jobs:
           OPENWRT_DIR="$PWD/openwrt"
           REPO_DIR="$PWD"
 
-          # 1. Интеграция DTS платы + Включение нативного DSA автонаследования
+          # 10. Интеграция DTS платы
           cp "$REPO_DIR/port/mt7621_vertell_vt-mt7621d.dts" \
-            "$OPENWRT_DIR/target/linux/ramips/dts/mt7621_vertell_vt-mt7621d.dts"
-          python3 - "$OPENWRT_DIR/target/linux/ramips/dts/mt7621_vertell_vt-mt7621d.dts" <<'PY'
-          from pathlib import Path
-          import sys
-          p = Path(sys.argv[1])
-          s = p.read_text()
-          # Находим узел интерфейса LAN внутри DTS и вшиваем туда аппаратную ссылку на родительский eth0
-          if 'label-macdevice' not in s:
-              s = s.replace('device = &ethernet;', 'device = &ethernet;\n\t\tlabel-macdevice = &eth0;', 1)
-              p.write_text(s)
-          PY
+            "$OPENWRT_DIR/target/linux/ramips/dts/mt7621_vertell_vt-mt7621d.dts"          
 
-          # 2. Интеграция Профиля платы в mt7621.mk
+          # 11. Интеграция Профиля платы в mt7621.mk
           PROFILE_FILE="$OPENWRT_DIR/target/linux/ramips/image/mt7621.mk"
           if ! grep -q '^define Device/vertell_vt-mt7621d$' "$PROFILE_FILE"; then
             printf '\n' >> "$PROFILE_FILE"
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 3. КАНОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
+          # 20. КАНОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
           export TARGET_NETWORK_FILE="$NETWORK_FILE"
           python3 - <<'PY'
@@ -106,18 +96,18 @@ jobs:
           p_net.write_text(s_net)
           PY
 
-          # 5. ИСПРАВЛЕНО: Копируем наш кастомный нативный пакет vtmodem напрямую в дерево OpenWrt
+          # 30. ИСПРАВЛЕНО: Копируем наш кастомный нативный пакет vtmodem напрямую в дерево OpenWrt
           rm -rf "$OPENWRT_DIR/package/vtmodem"
           cp -a "$REPO_DIR/package/vtmodem" "$OPENWRT_DIR/package/vtmodem"
 
-          # 6. Переносим остальные плоские оверлеи (99-system-cleanups и т.д.)
+          # 40. Переносим остальные плоские оверлеи (99-system-cleanups и т.д.)
           mkdir -p openwrt/package/base-files/files/etc/uci-defaults
           cp -r files/* openwrt/package/base-files/files/ 2>/dev/null || true
 
-          # 7. Выдаем права на запуск нативным файлам в сборочном дереве
+          # 50. Выдаем права на запуск нативным файлам в сборочном дереве
           chmod +x openwrt/package/base-files/files/etc/uci-defaults/* 2>/dev/null || true
 
-          # 8. Загружаем базовую конфигурацию сборки
+          # 60. Загружаем базовую конфигурацию сборки
           cp config/seed.config openwrt/.config
           cd openwrt
           
@@ -139,6 +129,6 @@ jobs:
       - name: Upload Finished Images
         uses: actions/upload-artifact@v4
         with:
-          name: pure-openwrt-vt-street-m2
+          name: VT-STREET-M2-Firmware-${{ env.OPENWRT_TAG }}
           retention-days: 14
           path: openwrt/bin/targets/ramips/mt7621/*
