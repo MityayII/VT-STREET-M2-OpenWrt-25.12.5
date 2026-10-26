@@ -39,22 +39,4 @@ uci commit dhcp
 uci -q delete network.globals.ula_prefix
 uci commit network
 
-# === 3. НАСТРОЙКА LED-ИНДИКАЦИИ СЕТИ ИНТЕРНЕТА (По канону Vertell) ===
-# Удаляем старое правило, чтобы конфигурация не задваивалась
-uci -q delete system.led_net
-
-# Прописываем точные параметры под green:wan для сетевой карты модема eth1
-uci set system.led_net=led
-uci set system.led_net.name='net'
-uci set system.led_net.sysfs='green:wan'
-uci set system.led_net.trigger='netdev'
-uci set system.led_net.dev='eth1'
-uci add_list system.led_net.mode='link'
-uci add_list system.led_net.mode='tx'
-uci add_list system.led_net.mode='rx'
-uci commit system
-
-# Перезапускаем службу светодиодов для применения параметров
-/etc/init.d/led restart 2>/dev/null
-
 exit 0
