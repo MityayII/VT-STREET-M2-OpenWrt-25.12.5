@@ -9,17 +9,14 @@
 * **Исключены:** `uboot-envtools`, `wpad-basic-mbedtls`, `hostapd-common` (Wi-Fi стек отсутствует).
 
 ### 📦 Предустановленный софт
-* **Управление модемом:** `luci-app-5gmodem` (из фида `fildunsky`), `uqmi`.
+* **Управление модемом:** `luci-app-5gmodem` (из фида `fildunsky`).
 * **Терминал и файловый менеджер:** `ttyd` (веб-терминал), `luci-app-filemanager`.
 * **Сеть и диагностика:** `curl`, `jq`, `bind-dig`, `coreutils`, `picocom`.
-* **Кастомный пакет:** `vtmodem` (версия 1.0-r2).
 
 ### ⚙️ Встроенные конфиги и скрипты
 * **`/etc/init.d/vtmac`** — скрипт запускается при загрузке (`S99`). Читает MAC из `mtd2` (смещение `0x28`), при отсутствии генерирует из хэша и применяет к `lan1` и `br-lan`.
 * **`/etc/hotplug.d/iface/99-modem-time`** — при поднятии модема (`ifup modem`) перезапускает `sysntpd` и динамически привязывает LED `green:wan` к актуальному интерфейсу модема (`$DEVICE`).
 * **`/etc/uci-defaults/99-system-cleanups`** — задает часовой пояс (Europe/Moscow), NTP РФ, отключает IPv6, удаляет битые репозитории, настраивает имя хоста `VT-STREET-M2`.
-* **`/etc/board.d/02_network`** — патч, который прибивает единственный порт `lan1` к LAN.
-
 
 ---
 
