@@ -1,4 +1,4 @@
-name: VT-STREET-M2-OpenWrt-25.12.5
+name: VT-STREET-M2-OpenWrt-25.12.6
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 300
 
     env:
-      OPENWRT_TAG: v25.12.5
+      OPENWRT_TAG: v25.12.6
 
     steps:
       - name: Checkout Repository
