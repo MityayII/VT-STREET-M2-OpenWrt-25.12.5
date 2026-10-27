@@ -39,4 +39,12 @@ uci commit dhcp
 uci -q delete network.globals.ula_prefix
 uci commit network
 
+# Регистрируем переключатель питания USB (GPIO 5) для LuCI
+# Используем имя 'power_usb' из DTS, чтобы не зависеть от номера пина
+uci set system.power_usb=gpio_switch
+uci set system.power_usb.name='USB Power'
+uci set system.power_usb.gpio_pin='power_usb'
+uci set system.power_usb.value='1'
+uci commit system
+
 exit 0
