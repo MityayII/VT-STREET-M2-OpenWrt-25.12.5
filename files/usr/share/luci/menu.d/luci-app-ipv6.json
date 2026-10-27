@@ -1,0 +1,13 @@
+{
+    "admin/system/ipv6": {
+        "title": "IPv6",
+        "order": 92,
+        "action": {
+            "type": "view",
+            "path": "ipv6"
+        },
+        "depends": {
+            "acl": [ "luci-app-ipv6" ]
+        }
+    }
+}
