@@ -1,4 +1,4 @@
-name: VT-STREET-M2-OpenWrt-25.12.6
+name: VT-STREET-M2-OpenWrt-25.12.x
 
 on:
   workflow_dispatch:
