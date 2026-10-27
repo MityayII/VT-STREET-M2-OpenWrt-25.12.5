@@ -52,7 +52,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Apply Board Support Files (Каноничный инжектор Максбакса)
+      - name: Patch OpenWrt for VT-STREET-M2
         run: |
           OPENWRT_DIR="$PWD/openwrt"
           REPO_DIR="$PWD"
@@ -68,7 +68,7 @@ jobs:
             cat "$REPO_DIR/port/vertell-profile.mk" >> "$PROFILE_FILE"
           fi
 
-          # 20. КАНОНИЧЕСКИЙ ПАТЧ ПОРТОВ VERTELL: Строго один порт lan1, без фантомных WAN
+          # 20. Патч портов
           NETWORK_FILE="$OPENWRT_DIR/target/linux/ramips/mt7621/base-files/etc/board.d/02_network"
           export TARGET_NETWORK_FILE="$NETWORK_FILE"
           python3 - <<'PY'
@@ -96,7 +96,7 @@ jobs:
           p_net.write_text(s_net)
           PY
 
-          # 30. ИСПРАВЛЕНО: Копируем наш кастомный нативный пакет vtmodem напрямую в дерево OpenWrt
+          # 30. Копируем пакет vtmodem в дерево сборки
           rm -rf "$OPENWRT_DIR/package/vtmodem"
           cp -a "$REPO_DIR/package/vtmodem" "$OPENWRT_DIR/package/vtmodem"
 
@@ -107,15 +107,11 @@ jobs:
           # 50. Выдаем права на запуск нативным файлам в сборочном дереве
           chmod +x openwrt/package/base-files/files/etc/uci-defaults/* 2>/dev/null || true
 
-          # 60. Загружаем базовую конфигурацию сборки
+          # 60. Загружаем базовую конфигурацию и включаем пакет vtmodem
           cp config/seed.config openwrt/.config
           cd openwrt
-          
-          # ЖЕЛЕЗОБЕТОННЫЙ ИНЖЕКТОР: Дописываем флаг ПОСЛЕ копирования seed.config!
-          # Теперь defconfig прочитает его и принудительно скомпилирует пакет vtmodem!
-          echo "CONFIG_PACKAGE_vtmodem=y" >> .config
-
-    
+                   
+              
           make defconfig
 
       
