@@ -39,6 +39,7 @@ uci commit dhcp
 # Удаляем ULA-префикс (чтобы не выдавался IPv6-адрес)
 uci -q delete network.globals.ula_prefix
 uci commit network
+
 # === 4. Регистрация переключателя питания USB (GPIO 5) ===
 # Используем имя 'power_usb' из DTS
 uci set system.power_usb=gpio_switch
@@ -54,7 +55,9 @@ if ! uci -q get ipv6.settings >/dev/null; then
     uci commit ipv6
 fi
 
-# Применяем текущее состояние (вызов скрипта)
-/usr/bin/ipv6-toggle.sh >/dev/null 2>&1
+# === 6. Применяем текущее состояние IPv6 (если скрипт существует) ===
+if [ -x /usr/bin/ipv6-toggle.sh ]; then
+    /usr/bin/ipv6-toggle.sh >/dev/null 2>&1
+fi
 
 exit 0
