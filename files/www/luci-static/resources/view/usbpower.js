@@ -5,11 +5,10 @@
 
 return view.extend({
 	load: function() {
-		// Читаем текущее состояние GPIO (1 - вкл, 0 - выкл)
 		return fs.read('/sys/class/gpio/power_usb/value').then(function(data) {
 			return data.trim();
 		}).catch(function() {
-			return '1'; // Если ошибка, считаем что включено
+			return '1';
 		});
 	},
 
@@ -18,11 +17,10 @@ return view.extend({
 		return fs.write('/sys/class/gpio/power_usb/value', state)
 			.then(function() {
 				ui.addNotification(null, E('p', 'Питание USB ' + (state === '1' ? 'включено' : 'выключено')), 'info');
-				// Принудительно перерисовываем страницу, чтобы обновить статус
 				return self.render();
 			})
 			.catch(function(e) {
-				ui.addNotification(null, E('p', 'Ошибка управления GPIO: ' + e.message), 'error');
+				ui.addNotification(null, E('p', 'Ошибка GPIO: ' + e.message), 'error');
 			});
 	},
 
@@ -32,7 +30,6 @@ return view.extend({
 		
 		return fs.write('/sys/class/gpio/power_usb/value', '0')
 			.then(function() {
-				// Ждем 5 секунд
 				return new Promise(function(resolve) { setTimeout(resolve, 5000); });
 			})
 			.then(function() {
