@@ -1,13 +1,12 @@
 #!/bin/sh
 
-# === 1. МГНОВЕННОЕ ИСПРАВЛЕНИЕ APK (ВЫРЕЗАЕМ БИТУЮ ССЫЛКУ) ===
-# Работает сразу при старте, интернет и точное время для этого не требуются
+# === 1. Исправление репозиториев APK ===
 if [ -d /etc/apk/repositories.d ]; then
-	sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
-	rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
+    sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
+    rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
 fi
-# === 1. УСТАНОВКА ЧАСОВОГО ПОЯСА И NTP СЕРВЕРОВ РФ ===
-# Жестко указываем нулевой индекс для анонимного массива системы
+
+# === 2. Настройка часового пояса и NTP ===
 uci set system.@system[0].zonename='Europe/Moscow'
 uci set system.@system[0].timezone='<+03>-3'
 uci set system.ntp.enabled='1'
@@ -16,16 +15,13 @@ uci -q delete system.ntp.server
 uci add_list system.ntp.server='0.ru.pool.ntp.org'
 uci add_list system.ntp.server='1.ru.pool.ntp.org'
 uci add_list system.ntp.server='pool.ntp.org'
-uci commit system
-
-# Возвращаем имя маршрутизатора вместо дефолтного OpenWrt
 uci set system.@system[0].hostname='VT-STREET-M2'
 uci commit system
 
-# Запускаем бесконечный фоновый системный демон синхронизации времени
+# Перезапускаем службу синхронизации времени
 /etc/init.d/sysntpd restart
 
-# === 2. ЖЕСТКОЕ ОТКЛЮЧЕНИЕ IPV6 НА УРОВНЕ ЯДРА И СЛУЖБ ОС ===
+# === 3. Отключение IPv6 на уровне ядра и DHCP ===
 echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
@@ -39,8 +35,8 @@ uci commit dhcp
 uci -q delete network.globals.ula_prefix
 uci commit network
 
-# Регистрируем переключатель питания USB (GPIO 5) для LuCI
-# Используем имя 'power_usb' из DTS, чтобы не зависеть от номера пина
+# === 4. Регистрация переключателя питания USB (GPIO 5) ===
+# Используем имя 'power_usb' из DTS
 uci set system.power_usb=gpio_switch
 uci set system.power_usb.name='USB Power'
 uci set system.power_usb.gpio_pin='power_usb'
