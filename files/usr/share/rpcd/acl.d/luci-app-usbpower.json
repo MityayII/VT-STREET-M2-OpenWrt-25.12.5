@@ -2,15 +2,13 @@
     "luci-app-usbpower": {
         "description": "Grant access to USB power control",
         "read": {
-            "uci": [ "system" ],
             "file": {
-                "/etc/init.d/gpio_switch": [ "exec" ]
+                "/sys/class/gpio/power_usb/value": [ "read" ]
             }
         },
         "write": {
-            "uci": [ "system" ],
             "file": {
-                "/etc/init.d/gpio_switch": [ "exec" ]
+                "/sys/class/gpio/power_usb/value": [ "write" ]
             }
         }
     }
