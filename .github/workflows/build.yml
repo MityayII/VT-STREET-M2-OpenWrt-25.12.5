@@ -104,6 +104,8 @@ jobs:
           mkdir -p openwrt/package/base-files/files/etc/uci-defaults
           cp -r files/* openwrt/package/base-files/files/ 2>/dev/null || true
 
+          # 45. Выдаем права на запуск всем скриптам из files/usr/bin/
+          chmod +x openwrt/package/base-files/files/usr/bin/* 2>/dev/null || true
           # 50. Выдаем права на запуск нативным файлам в сборочном дереве
           chmod +x openwrt/package/base-files/files/etc/uci-defaults/* 2>/dev/null || true
 
