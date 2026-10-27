@@ -72,7 +72,7 @@ return view.extend({
 					E('button', {
 						'class': 'btn cbi-button cbi-button-action',
 						'click': ui.createHandlerFn(this, function() { return this.handleReboot(); })
-					}, 'Перезагрузить модем (5с)')
+					}, 'Перезагрузить модем')
 				])
 			])
 		]);
