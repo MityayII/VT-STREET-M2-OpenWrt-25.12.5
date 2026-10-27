@@ -23,17 +23,20 @@ return view.extend({
         o.value('0', 'Выключено');
         o.rmempty = false;
 
-        // 4. Создаем элемент для статуса (текст)
+        // 4. Создаем элемент для статуса (с иконкой и цветом)
         var statusEl = E('div', { 
-            'style': 'margin-bottom: 20px; font-size: 1.2em; font-weight: bold; color: #666;' 
+            'style': 'margin-bottom: 20px; padding: 10px; border-radius: 4px; background-color: #f8f8f8; font-size: 1.2em;' 
         }, 'Текущий статус: загрузка...');
 
         // 5. Функция обновления статуса
         var updateStatus = function() {
             uci.load('ipv6').then(function() {
                 var isEnabled = (uci.get('ipv6', 'settings', 'enabled') === '1');
-                statusEl.style.color = isEnabled ? 'green' : 'red';
-                statusEl.textContent = 'Текущий статус: ' + (isEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН');
+                var icon = isEnabled ? '🟢' : '🔴';
+                var color = isEnabled ? 'green' : 'red';
+                var text = isEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН';
+                
+                statusEl.innerHTML = '<b>Текущий статус:</b> <span style="color: ' + color + '; font-weight: bold;">' + icon + ' ' + text + '</span>';
             });
         };
 
@@ -45,7 +48,7 @@ return view.extend({
                 return fs.exec('/usr/bin/ipv6-toggle.sh');
             }).then(function() {
                 ui.addNotification(null, E('p', 'Настройки IPv6 применены!'), 'info');
-                updateStatus(); // Обновляем текст статуса без перезагрузки страницы
+                updateStatus(); // Обновляем статус без перезагрузки
             }).catch(function(e) {
                 ui.addNotification(null, E('p', 'Ошибка: ' + e.message), 'error');
             });
@@ -54,17 +57,12 @@ return view.extend({
         // 7. Рендерим форму и добавляем статус перед ней
         var formView = m.render();
         
-        // Возвращаем контейнер, в котором сначала статус, потом форма
+        // 8. Вызываем обновление статуса сразу после рендера
+        setTimeout(updateStatus, 100);
+
         return E('div', {}, [
             statusEl,
             formView
         ]);
-    },
-
-    // При загрузке страницы сразу обновляем статус
-    load: function() {
-        return uci.load('ipv6').then(function() {
-            return uci.get('ipv6', 'settings', 'enabled');
-        });
     }
 });
