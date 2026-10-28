@@ -14,15 +14,12 @@ return view.extend({
             uci.set('ipv6', 'settings', 'enabled', '0');
         }
 
-        // Создаем форму
         m = new form.Map('ipv6', 'Управление IPv6',
             'Включение или выключение IPv6 на уровне ядра и DHCP.');
 
-        // Секция
         s = m.section(form.NamedSection, 'settings', 'settings');
         s.anonymous = true;
 
-        // Выпадающий список
         o = s.option(form.ListValue, 'enabled', 'Состояние IPv6');
         o.value('1', 'Включено');
         o.value('0', 'Выключено');
@@ -30,16 +27,20 @@ return view.extend({
 
         // Переопределяем сохранение
         m.save = function() {
+            // 1. Получаем выбранное значение (1 или 0)
+            var state = this.get('settings', 'enabled') || '0';
+
+            // 2. Сохраняем в UCI (чтобы LuCI не ругался)
             return uci.save().then(function() {
-                return fs.exec('/usr/bin/ipv6-toggle.sh');
+                // 3. Вызываем скрипт и ПЕРЕДАЕМ ему аргумент (1 или 0)
+                return fs.exec('/usr/bin/ipv6-toggle.sh', [state]);
             }).then(function() {
-                ui.addNotification(null, E('p', 'Настройки IPv6 применены!'), 'info');
+                ui.addNotification(null, E('p', 'Настройки IPv6 ' + (state === '1' ? 'включены' : 'выключены')), 'info');
             }).catch(function(e) {
                 ui.addNotification(null, E('p', 'Ошибка: ' + e.message), 'error');
             });
         };
 
-        // Возвращаем форму
         return m.render();
     }
 });
