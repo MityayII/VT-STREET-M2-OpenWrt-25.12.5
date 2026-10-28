@@ -9,6 +9,11 @@ return view.extend({
     render: function() {
         var m, s, o;
 
+        // Проверяем, есть ли секция. Если нет — создаем в памяти.
+        if (!uci.get('ipv6', 'settings', 'enabled')) {
+            uci.set('ipv6', 'settings', 'enabled', '0');
+        }
+
         // Создаем форму
         m = new form.Map('ipv6', 'Управление IPv6',
             'Включение или выключение IPv6 на уровне ядра и DHCP.');
@@ -26,7 +31,6 @@ return view.extend({
         // Переопределяем сохранение
         m.save = function() {
             return uci.save().then(function() {
-                           }).then(function() {
                 return fs.exec('/usr/bin/ipv6-toggle.sh');
             }).then(function() {
                 ui.addNotification(null, E('p', 'Настройки IPv6 применены!'), 'info');
