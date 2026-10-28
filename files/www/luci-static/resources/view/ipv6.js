@@ -26,8 +26,7 @@ return view.extend({
         // Переопределяем сохранение
         m.save = function() {
             return uci.save().then(function() {
-                return uci.apply();
-            }).then(function() {
+                           }).then(function() {
                 return fs.exec('/usr/bin/ipv6-toggle.sh');
             }).then(function() {
                 ui.addNotification(null, E('p', 'Настройки IPv6 применены!'), 'info');
