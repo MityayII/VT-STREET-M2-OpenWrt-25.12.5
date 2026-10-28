@@ -48,13 +48,23 @@ uci set system.power_usb.gpio_pin='power_usb'
 uci set system.power_usb.value='1'
 uci commit system
 
-# === 5. Принудительная инициализация UCI для IPv6 (всегда выключено при первой загрузке) ===
+# === 5. Принудительная инициализация UCI для IPv6 ===
+# Удаляем старый конфиг, чтобы не было остатков
+rm -f /etc/config/ipv6
+# Создаем новый с enabled='0'
 uci set ipv6.settings=settings
 uci set ipv6.settings.enabled='0'
 uci commit ipv6
 
-# === 6. Применяем текущее состояние IPv6 (скрипт прочитает enabled='0' и выключит) ===
-if [ -x /usr/bin/ipv6-toggle.sh ]; then
-    /usr/bin/ipv6-toggle.sh >/dev/null 2>&1
-fi
+# === 6. Выключаем IPv6 (без вызова ipv6-toggle.sh) ===
+# Делаем это напрямую, чтобы не зависеть от скрипта
+echo "net.ipv6.conf.all.disable_ipv6=1" > /etc/sysctl.d/99-disable-ipv6.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.d/99-disable-ipv6.conf
+echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.d/99-disable-ipv6.conf
+sysctl -p /etc/sysctl.d/99-disable-ipv6.conf 2>/dev/null
+
+uci set dhcp.lan.dhcpv6='disabled'
+uci set dhcp.lan.ra='disabled'
+uci commit dhcp
+/etc/init.d/odhcpd restart 2>/dev/null
 exit 0
