@@ -4,7 +4,8 @@
         "read": {
             "uci": [ "ipv6", "dhcp" ],
             "file": {
-                "/usr/bin/ipv6-toggle.sh": [ "exec" ]
+                "/usr/bin/ipv6-toggle.sh": [ "exec" ],
+                "/tmp/ipv6-status": [ "read" ]
             }
         },
         "write": {
