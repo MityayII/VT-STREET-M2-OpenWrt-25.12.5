@@ -18,24 +18,20 @@ return view.extend({
         var currentState = uci.get('ipv6', 'settings', 'enabled') || '0';
         var isOn = (currentState === '1');
         
-        // Формируем HTML для красивого статуса
+        // Формируем текст и цвет
         var statusColor = isOn ? '#4caf50' : '#f44336'; // Зеленый или красный
         var statusText = isOn ? 'Включено' : 'Выключено';
         
-        // Создаем блок статуса (кружок + текст)
-        var statusHtml = E('div', { 'style': 'margin-bottom: 20px; font-size: 1.1em; display: flex; align-items: center;' }, [
-            E('b', { 'style': 'margin-right: 10px;' }, 'Текущий статус: '),
-            E('span', { 
-                'style': 'display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ' + statusColor + '; margin-right: 8px; box-shadow: 0 0 5px ' + statusColor + ';' 
-            }),
-            E('span', { 'style': 'color: ' + statusColor + '; font-weight: bold;' }, statusText)
-        ]);
+        // Формируем HTML для вставки в описание формы (это безопасно)
+        var statusHtml = '<div style="margin-top: 10px; margin-bottom: 15px; font-size: 1.1em; display: flex; align-items: center;">' +
+            '<b style="margin-right: 10px;">Текущий статус: </b>' +
+            '<span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ' + statusColor + '; margin-right: 8px; box-shadow: 0 0 5px ' + statusColor + ';"></span>' +
+            '<span style="color: ' + statusColor + '; font-weight: bold;">' + statusText + '</span>' +
+        '</div>';
 
+        // Создаем форму и передаем ей описание с нашим статусом
         m = new form.Map('ipv6', 'Управление IPv6',
-            'Включение или выключение IPv6 на уровне ядра и DHCP.');
-
-        // Вставляем наш красивый статус перед формой
-        m.children.unshift(statusHtml);
+            'Включение или выключение IPv6 на уровне ядра и DHCP.' + statusHtml);
 
         s = m.section(form.NamedSection, 'settings', 'settings');
         s.anonymous = true;
