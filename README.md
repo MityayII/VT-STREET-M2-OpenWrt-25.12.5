@@ -18,6 +18,10 @@
 * **`/etc/hotplug.d/iface/99-modem-time`** — при поднятии модема (`ifup modem`) перезапускает `sysntpd` и динамически привязывает LED `green:wan` к актуальному интерфейсу модема (`$DEVICE`).
 * **`/etc/uci-defaults/99-system-cleanups`** — настраивает часовой пояс (Europe/Moscow), NTP РФ, отключает IPv6, удаляет битые репозитории, задает имя хоста `VT-STREET-M2` и регистрирует GPIO-переключатель для управления питанием USB.
 
+### 🎛️ Дополнительные меню LuCI
+* **Сеть → IPv6** — управление включением/выключением IPv6 на уровне ядра и DHCP (через `ipv6-toggle.sh`).
+* **Система → Питание USB** — управление питанием USB-порта модема (GPIO `power_usb`) с возможностью перезагрузки модема по питанию.
+
 ---
 
 ## 🤖 Использованные ИИ-ассистенты
@@ -49,14 +53,21 @@
 
 <table>
   <tr>
-    <td align="center" width="120">
+    <td align="center" width="200">
       <a href="https://github.com/makssbaks">
         <img src="https://github.com/makssbaks.png?size=100" width="80" height="80" alt="makssbaks" style="border-radius: 50%;" /><br />
         <sub><b>makssbaks</b></sub>
       </a>
+      <br />
+      <sub>Портирование, DTS, патчи портов</sub>
     </td>
-    <td>
-      Огромная благодарность за проделанную работу по портированию и ценные наработки (DTS, патчи портов), которые легли в основу этого проекта.
+    <td align="center" width="200">
+      <a href="https://github.com/fildunsky">
+        <img src="https://github.com/fildunsky.png?size=100" width="80" height="80" alt="fildunsky" style="border-radius: 50%;" /><br />
+        <sub><b>fildunsky</b></sub>
+      </a>
+      <br />
+      <sub>Пакет luci-app-5gmodem и драйверы модемов</sub>
     </td>
   </tr>
 </table>
