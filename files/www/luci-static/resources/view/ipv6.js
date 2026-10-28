@@ -22,7 +22,7 @@ return view.extend({
         var statusColor = isOn ? '#4caf50' : '#f44336'; // Зеленый или красный
         var statusText = isOn ? 'Включено' : 'Выключено';
         
-        // Создаем блок статуса
+        // Создаем блок статуса (кружок + текст)
         var statusHtml = E('div', { 'style': 'margin-bottom: 20px; font-size: 1.1em; display: flex; align-items: center;' }, [
             E('b', { 'style': 'margin-right: 10px;' }, 'Текущий статус: '),
             E('span', { 
