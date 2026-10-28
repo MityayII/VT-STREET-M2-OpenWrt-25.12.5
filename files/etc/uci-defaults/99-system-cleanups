@@ -52,6 +52,8 @@ uci commit system
 # Не удаляем файл, а перезаписываем его с нужным содержимым
 echo "config settings 'settings'" > /etc/config/ipv6
 echo "    option enabled '0'" >> /etc/config/ipv6
+# Создаем файл статуса для LuCI
+echo "0" > /tmp/ipv6-status
 
 # Принудительно перезагружаем конфиг в ubus/rpcd
 uci commit ipv6
