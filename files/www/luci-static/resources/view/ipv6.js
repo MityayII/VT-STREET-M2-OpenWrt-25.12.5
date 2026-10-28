@@ -10,7 +10,7 @@ return view.extend({
         var m, s, o;
         var currentState = '0';
 
-        // Читаем статус из нашего файла. Если файла нет, пробуем UCI.
+        // Читаем статус из файла. Если файла нет, пробуем UCI.
         return fs.read('/tmp/ipv6-status').then(function(data) {
             currentState = data.trim();
         }).catch(function() {
