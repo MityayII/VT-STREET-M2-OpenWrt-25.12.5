@@ -3,9 +3,6 @@
 <img src="https://vertell.ru/media/product/xUP4kT_weESF.jpg" align="right" width="280" style="margin-left: 20px;" />
 
 ### 💾 Базовая система
-* **OpenWrt 25.12.6** ...
-
-### 💾 Базовая система
 * **OpenWrt 25.12.6** (ядро Linux 6.12.x, архитектура MIPS).
 * **Веб-интерфейс:** LuCI с русской локализацией.
 ### 🔌 Драйверы (Kernel Modules)
