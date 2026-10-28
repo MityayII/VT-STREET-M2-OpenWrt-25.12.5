@@ -49,12 +49,13 @@ uci set system.power_usb.value='1'
 uci commit system
 
 # === 5. Принудительная инициализация UCI для IPv6 ===
-# Удаляем старый конфиг, чтобы не было остатков
-rm -f /etc/config/ipv6
-# Создаем новый с enabled='0'
-uci set ipv6.settings=settings
-uci set ipv6.settings.enabled='0'
+# Не удаляем файл, а перезаписываем его с нужным содержимым
+echo "config settings 'settings'" > /etc/config/ipv6
+echo "    option enabled '0'" >> /etc/config/ipv6
+
+# Принудительно перезагружаем конфиг в ubus/rpcd
 uci commit ipv6
+/etc/init.d/rpcd reload 2>/dev/null
 
 # === 6. Выключаем IPv6 (без вызова ipv6-toggle.sh) ===
 # Делаем это напрямую, чтобы не зависеть от скрипта
