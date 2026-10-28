@@ -48,16 +48,13 @@ uci set system.power_usb.gpio_pin='power_usb'
 uci set system.power_usb.value='1'
 uci commit system
 
-# === 5. Инициализация UCI для IPv6 (если ещё нет) ===
-if ! uci -q get ipv6.settings >/dev/null; then
-    uci set ipv6.settings=settings
-    uci set ipv6.settings.enabled='0'
-    uci commit ipv6
-fi
+# === 5. Принудительная инициализация UCI для IPv6 (всегда выключено при первой загрузке) ===
+uci set ipv6.settings=settings
+uci set ipv6.settings.enabled='0'
+uci commit ipv6
 
-# === 6. Применяем текущее состояние IPv6 (если скрипт существует) ===
+# === 6. Применяем текущее состояние IPv6 (скрипт прочитает enabled='0' и выключит) ===
 if [ -x /usr/bin/ipv6-toggle.sh ]; then
     /usr/bin/ipv6-toggle.sh >/dev/null 2>&1
 fi
-
 exit 0
