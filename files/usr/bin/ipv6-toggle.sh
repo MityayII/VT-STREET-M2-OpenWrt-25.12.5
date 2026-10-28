@@ -1,11 +1,16 @@
 #!/bin/sh
 
-# Читаем текущее состояние из UCI (по умолчанию '0' = выключено)
-ENABLED=$(uci -q get ipv6.settings.enabled)
-[ -z "$ENABLED" ] && ENABLED="0"
+# Если аргумент передан — используем его. 
+# Если нет (например, вызов из 99-system-cleanups) — читаем UCI или ставим 0 по умолчанию.
+if [ -n "$1" ]; then
+    ENABLED="$1"
+else
+    ENABLED=$(uci -q get ipv6.settings.enabled)
+    [ -z "$ENABLED" ] && ENABLED="0"
+fi
 
 if [ "$ENABLED" = "1" ]; then
-    # UCI говорит "Включено" -> Включаем IPv6
+    # Включаем IPv6
     sysctl -w net.ipv6.conf.all.disable_ipv6=0
     sysctl -w net.ipv6.conf.default.disable_ipv6=0
     sysctl -w net.ipv6.conf.lo.disable_ipv6=0
@@ -18,7 +23,7 @@ if [ "$ENABLED" = "1" ]; then
     
     echo "IPv6 включен"
 else
-    # UCI говорит "Выключено" -> Выключаем IPv6
+    # Выключаем IPv6
     sysctl -w net.ipv6.conf.all.disable_ipv6=1
     sysctl -w net.ipv6.conf.default.disable_ipv6=1
     sysctl -w net.ipv6.conf.lo.disable_ipv6=1
