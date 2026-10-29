@@ -70,4 +70,13 @@ uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ra='disabled'
 uci commit dhcp
 /etc/init.d/odhcpd restart 2>/dev/null
+
+# === 7. Включение аппаратного офлоадинга (HFO) ===
+# Ускоряет обработку NAT на уровне чипа MT7621
+uci set firewall.@defaults[0].flow_offloading='1'
+uci set firewall.@defaults[0].flow_offloading_hw='1'
+uci commit firewall
+
+# Перезапускаем фаервол, чтобы применить настройки (опционально, но полезно)
+/etc/init.d/firewall restart 2>/dev/null
 exit 0
