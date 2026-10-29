@@ -130,11 +130,3 @@ if ! uci -q get footstrap.settings >/dev/null 2>&1; then
     uci commit footstrap
 fi
 exit 0
-EOF
-    chmod +x /etc/uci-defaults/30_luci-theme-footstrap
-    # Запускаем его сразу (чтобы страница появилась без перезагрузки)
-    /etc/uci-defaults/30_luci-theme-footstrap
-    # Удаляем после выполнения (как это делают стандартные uci-defaults)
-    rm -f /etc/uci-defaults/30_luci-theme-footstrap
-fi
-exit 0
