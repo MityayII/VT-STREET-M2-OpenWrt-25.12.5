@@ -83,4 +83,35 @@ uci commit firewall
 # === Установка темы Footstrap по умолчанию ===
 uci set luci.main.mediaurlbase='/luci-static/footstrap'
 uci commit luci
+
+# === Настройка Footstrap: темная тема и узор с котиками ===
+uci set footstrap.settings=footstrap
+uci set footstrap.settings.darkmode='dark'
+uci set footstrap.settings.palette='footstrap'
+uci set footstrap.settings.wallpaper='pattern'
+uci set footstrap.settings.pattern='1a0192632c52383ea1a4a617fd7c5620'
+uci set footstrap.settings.pattern_size='440'
+uci set footstrap.settings.pattern_strength='20'
+uci set footstrap.settings.pattern_ink='theme'
+uci set footstrap.settings.layout='top'
+uci set footstrap.settings.tint='0'
+uci set footstrap.settings.accent='0'
+uci set footstrap.settings.good='0'
+uci set footstrap.settings.warn='0'
+uci set footstrap.settings.danger='0'
+uci set footstrap.settings.card='0'
+uci set footstrap.settings.control='0'
+uci set footstrap.settings.bar='0'
+uci set footstrap.settings.line='0'
+uci set footstrap.settings.rounding='12'
+uci set footstrap.settings.autocollapse='off'
+uci set footstrap.settings.tint_strength='100'
+uci set footstrap.settings.density='normal'
+uci set footstrap.settings.photo_dim='74'
+uci set footstrap.settings.content_width='1280'
+uci set footstrap.settings.card_opacity='100'
+uci set footstrap.settings.bar_opacity='100'
+uci set footstrap.settings.material='frosted'
+uci set footstrap.settings.blur='100'
+uci commit footstrap
 exit 0
