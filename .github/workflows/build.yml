@@ -45,13 +45,15 @@ jobs:
           path: openwrt/dl
           key: vt-street-m2-dl-${{ env.OPENWRT_TAG }}
 
-      - name: Inject fildunsky feed and install packages
+      - name: Inject fildunsky&VizzleTF feed and install packages
         working-directory: openwrt
         run: |
           echo "src-git modem https://github.com/fildunsky/luci-app-5gmodem.git" >> feeds.conf.default
+          # Добавляем фид Footstrap
+          echo "src-git footstrap https://github.com/VizzleTF/luci-theme-footstrap.git" >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
+          
       - name: Patch OpenWrt for VT-STREET-M2
         run: |
           OPENWRT_DIR="$PWD/openwrt"
