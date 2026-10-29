@@ -3,9 +3,9 @@
 # === 1. Исправление репозиториев APK ===
 if [ -d /etc/apk/repositories.d ]; then
     sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
-    rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
+    rm -f /etc/apk/repositories.d/modem.list 2>/dev/null    
+    sed -i '/\/footstrap/d' /etc/apk/repositories.d/* 2>/dev/null
 fi
-
 # === 2. Настройка часового пояса и NTP ===
 uci set system.@system[0].zonename='Europe/Moscow'
 uci set system.@system[0].timezone='<+03>-3'
