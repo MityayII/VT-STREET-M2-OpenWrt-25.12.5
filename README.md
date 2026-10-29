@@ -1,6 +1,6 @@
 ## 📦 VT-STREET-M2 | OpenWrt 25.12.x
 
-<img src="vt-street-m2.jpg" align="right" width="200" />
+<img src="vt-street-m2.png" align="right" width="200" />
 
 ### 💾 Базовая система
 * **OpenWrt 25.12.6** (ядро Linux 6.12.x, архитектура MIPS).
