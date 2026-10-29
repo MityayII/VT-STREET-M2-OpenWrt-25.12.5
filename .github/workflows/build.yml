@@ -119,7 +119,32 @@ jobs:
           make defconfig
 
       
-          make package/vtmodem/clean          
+          make package/vtmodem/clean
+          
+      - name: Build Footstrap Package Only (with verbose log)
+        run: |
+          cd openwrt
+          echo "=== Building luci-theme-footstrap ONLY ==="
+          make package/luci-theme-footstrap/compile V=s 2>&1 | tee /tmp/footstrap-build.log
+          echo "=== Checking package contents ==="
+          PKG=$(find bin/packages -name "luci-theme-footstrap*.apk" | head -n 1)
+          if [ -z "$PKG" ]; then
+            echo "ERROR: Package not built!"
+            exit 1
+          fi
+          echo "Package built: $PKG"
+          tar -xOf "$PKG" data.tar.gz | tar -tzf - | grep "etc/uci-defaults/30_luci-theme-footstrap" || {
+            echo "ERROR: 30_luci-theme-footstrap NOT FOUND in package!"
+            exit 1
+          }
+          echo "OK: File found in package."
+
+      - name: Upload Footstrap Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: footstrap-build-log
+          path: /tmp/footstrap-build.log
 
       - name: Build OpenWrt Firmware
         run: |
