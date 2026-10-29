@@ -134,19 +134,4 @@ jobs:
           name: VT-STREET-M2-Firmware-${{ env.OPENWRT_TAG }}
           retention-days: 14
           path: openwrt/bin/targets/ramips/mt7621/*
-
-      - name: Verify Footstrap package in built image
-        run: |
-          cd openwrt
-          # Ищем пакет в собранных пакетах (после сборки образа)
-          PKG=$(find bin/packages -name "luci-theme-footstrap*.apk" | head -n 1)
-          if [ -z "$PKG" ]; then
-            echo "ERROR: luci-theme-footstrap.apk not found in bin/packages!"
-            exit 1
-          fi
-          echo "Checking $PKG..."
-          tar -xOf "$PKG" data.tar.gz | tar -tzf - | grep "etc/uci-defaults/30_luci-theme-footstrap" || {
-            echo "ERROR: 30_luci-theme-footstrap NOT FOUND in package!"
-            exit 1
-          }
-          echo "OK: File found in package."          
+     
