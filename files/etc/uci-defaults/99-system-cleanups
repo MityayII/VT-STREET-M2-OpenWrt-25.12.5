@@ -79,4 +79,8 @@ uci commit firewall
 
 # Перезапускаем фаервол, чтобы применить настройки (опционально, но полезно)
 /etc/init.d/firewall restart 2>/dev/null
+
+# === Установка темы Footstrap по умолчанию ===
+uci set luci.main.mediaurlbase='/luci-static/footstrap'
+uci commit luci
 exit 0
