@@ -1,13 +1,12 @@
 #!/bin/sh
 
-# === 1. МГНОВЕННОЕ ИСПРАВЛЕНИЕ APK (ВЫРЕЗАЕМ БИТУЮ ССЫЛКУ) ===
-# Работает сразу при старте, интернет и точное время для этого не требуются
+# === 1. Исправление репозиториев APK ===
 if [ -d /etc/apk/repositories.d ]; then
-	sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
-	rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
+    sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
+    rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
 fi
-# === 1. УСТАНОВКА ЧАСОВОГО ПОЯСА И NTP СЕРВЕРОВ РФ ===
-# Жестко указываем нулевой индекс для анонимного массива системы
+
+# === 2. Настройка часового пояса и NTP ===
 uci set system.@system[0].zonename='Europe/Moscow'
 uci set system.@system[0].timezone='<+03>-3'
 uci set system.ntp.enabled='1'
@@ -16,27 +15,59 @@ uci -q delete system.ntp.server
 uci add_list system.ntp.server='0.ru.pool.ntp.org'
 uci add_list system.ntp.server='1.ru.pool.ntp.org'
 uci add_list system.ntp.server='pool.ntp.org'
-uci commit system
-
-# Возвращаем имя маршрутизатора вместо дефолтного OpenWrt
 uci set system.@system[0].hostname='VT-STREET-M2'
 uci commit system
 
-# Запускаем бесконечный фоновый системный демон синхронизации времени
+# Перезапускаем службу синхронизации времени
 /etc/init.d/sysntpd restart
 
-# === 2. ЖЕСТКОЕ ОТКЛЮЧЕНИЕ IPV6 НА УРОВНЕ ЯДРА И СЛУЖБ ОС ===
-echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
-echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
-echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
-sysctl -p /etc/sysctl.conf 2>/dev/null
+# === 3. Отключение IPv6 на уровне ядра и DHCP ===
+# Пишем в отдельный файл, чтобы не засорять sysctl.conf и избежать дублей
+echo "net.ipv6.conf.all.disable_ipv6=1" > /etc/sysctl.d/99-disable-ipv6.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.d/99-disable-ipv6.conf
+echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.d/99-disable-ipv6.conf
 
+# Применяем настройки
+sysctl -p /etc/sysctl.d/99-disable-ipv6.conf 2>/dev/null
+
+# Отключаем IPv6 в DHCP-сервисах (LuCI)
 uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ra='disabled'
 uci commit dhcp
 /etc/init.d/odhcpd restart 2>/dev/null
 
+# Удаляем ULA-префикс (чтобы не выдавался IPv6-адрес)
 uci -q delete network.globals.ula_prefix
 uci commit network
 
+# === 4. Регистрация переключателя питания USB (GPIO 5) ===
+# Используем имя 'power_usb' из DTS
+uci set system.power_usb=gpio_switch
+uci set system.power_usb.name='USB Power'
+uci set system.power_usb.gpio_pin='power_usb'
+uci set system.power_usb.value='1'
+uci commit system
+
+# === 5. Принудительная инициализация UCI для IPv6 ===
+# Не удаляем файл, а перезаписываем его с нужным содержимым
+echo "config settings 'settings'" > /etc/config/ipv6
+echo "    option enabled '0'" >> /etc/config/ipv6
+# Создаем файл статуса для LuCI
+echo "0" > /tmp/ipv6-status
+
+# Принудительно перезагружаем конфиг в ubus/rpcd
+uci commit ipv6
+/etc/init.d/rpcd reload 2>/dev/null
+
+# === 6. Выключаем IPv6 (без вызова ipv6-toggle.sh) ===
+# Делаем это напрямую, чтобы не зависеть от скрипта
+echo "net.ipv6.conf.all.disable_ipv6=1" > /etc/sysctl.d/99-disable-ipv6.conf
+echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.d/99-disable-ipv6.conf
+echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.d/99-disable-ipv6.conf
+sysctl -p /etc/sysctl.d/99-disable-ipv6.conf 2>/dev/null
+
+uci set dhcp.lan.dhcpv6='disabled'
+uci set dhcp.lan.ra='disabled'
+uci commit dhcp
+/etc/init.d/odhcpd restart 2>/dev/null
 exit 0

@@ -1,0 +1,15 @@
+{
+    "luci-app-usbpower": {
+        "description": "Grant access to USB power control",
+        "read": {
+            "file": {
+                "/sys/class/gpio/power_usb/value": [ "read" ]
+            }
+        },
+        "write": {
+            "file": {
+                "/sys/class/gpio/power_usb/value": [ "write" ]
+            }
+        }
+    }
+}

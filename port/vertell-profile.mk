@@ -7,7 +7,6 @@ define Device/vertell_vt-mt7621d
   UBINIZE_OPTS := -E 5
   IMAGE/sysupgrade.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-ubi | check-size $$(IMAGE_SIZE)
   DEVICE_PACKAGES := -uboot-envtools -wpad-basic-mbedtls -hostapd-common \
-	kmod-usb3 kmod-usb-acm kmod-usb-net-cdc-ncm \
-	kmod-usb-net-qmi-wwan kmod-usb-serial-option uqmi
+	kmod-usb3
 endef
 TARGET_DEVICES += vertell_vt-mt7621d

@@ -1,0 +1,13 @@
+{
+    "admin/system/usbpower": {
+        "title": "Питание USB",
+        "order": 90,
+        "action": {
+            "type": "view",
+            "path": "usbpower"
+        },
+        "depends": {
+            "acl": [ "luci-app-usbpower" ]
+        }
+    }
+}
