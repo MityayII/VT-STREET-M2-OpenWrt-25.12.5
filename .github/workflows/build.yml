@@ -121,6 +121,11 @@ jobs:
       
           make package/vtmodem/clean
           
+      - name: Clean staging dir
+        run: |
+          rm -rf openwrt/staging_dir/host
+          rm -rf openwrt/staging_dir/hostpkg          
+          
       - name: Build Footstrap Package Only (with verbose log)
         run: |
           cd openwrt
