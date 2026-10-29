@@ -114,4 +114,27 @@ uci set footstrap.settings.bar_opacity='100'
 uci set footstrap.settings.material='frosted'
 uci set footstrap.settings.blur='100'
 uci commit footstrap
+
+# === Принудительная регистрация темы Footstrap ===
+# Проверяем, существует ли скрипт регистрации в базовом образе
+if [ ! -f /etc/uci-defaults/30_luci-theme-footstrap ]; then
+    # Если нет — создаем его
+    cat > /etc/uci-defaults/30_luci-theme-footstrap << 'EOF'
+#!/bin/sh
+uci set luci.themes.Footstrap=/luci-static/footstrap
+uci set luci.main.mediaurlbase=/luci-static/footstrap
+uci commit luci
+[ -f /etc/config/footstrap ] || touch /etc/config/footstrap
+if ! uci -q get footstrap.settings >/dev/null 2>&1; then
+    uci set footstrap.settings=footstrap
+    uci commit footstrap
+fi
+exit 0
+EOF
+    chmod +x /etc/uci-defaults/30_luci-theme-footstrap
+    # Запускаем его сразу (чтобы страница появилась без перезагрузки)
+    /etc/uci-defaults/30_luci-theme-footstrap
+    # Удаляем после выполнения (как это делают стандартные uci-defaults)
+    rm -f /etc/uci-defaults/30_luci-theme-footstrap
+fi
 exit 0
