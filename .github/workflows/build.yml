@@ -106,6 +106,24 @@ jobs:
           mkdir -p openwrt/package/base-files/files/etc/uci-defaults
           cp -r files/* openwrt/package/base-files/files/ 2>/dev/null || true
 
+          # 42. Скачиваем ключ owfeed-packages (гибридный вариант)
+          mkdir -p openwrt/package/base-files/files/etc/apk/keys
+          if ! wget -qO openwrt/package/base-files/files/etc/apk/keys/owfeed-packages.pem \
+               https://repo.owfeed.org/owfeed-packages.pem; then
+            echo "WARNING: Could not download owfeed-packages.pem, using the one from files/"
+            cp files/etc/apk/keys/owfeed-packages.pem openwrt/package/base-files/files/etc/apk/keys/ 2>/dev/null || true
+          fi
+
+          # 43. Добавляем фид owfeed-packages в образ
+          mkdir -p openwrt/package/base-files/files/etc/apk/repositories.d
+          ARCH=$(cat /etc/apk/arch 2>/dev/null || echo "mipsel_24kc")
+          echo "https://repo.owfeed.org/releases/25.12/${ARCH}/packages.adb" \
+            > openwrt/package/base-files/files/etc/apk/repositories.d/owfeed-packages.list
+
+          # 44. Сохраняем фид и ключ при sysupgrade
+          mkdir -p openwrt/package/base-files/files/lib/upgrade/keep.d
+          printf '%s\n' /etc/apk/keys/owfeed-packages.pem /etc/apk/repositories.d/owfeed-packages.list \
+            > openwrt/package/base-files/files/lib/upgrade/keep.d/owfeed-packages
           # 45. Выдаем права на запуск всем скриптам из files/usr/bin/
           chmod +x openwrt/package/base-files/files/usr/bin/* 2>/dev/null || true
           # 50. Выдаем права на запуск нативным файлам в сборочном дереве
