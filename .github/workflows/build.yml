@@ -114,14 +114,7 @@ jobs:
             cp files/etc/apk/keys/owfeed-packages.pem openwrt/package/base-files/files/etc/apk/keys/ 2>/dev/null || true
           fi
 
-          # 43. Добавляем фид owfeed-packages в customfeeds.list (чтобы LuCI видел)
-          mkdir -p openwrt/package/base-files/files/etc/apk/repositories.d
-          ARCH=$(cat /etc/apk/arch 2>/dev/null || echo "mipsel_24kc")
-          if ! grep -q "repo.owfeed.org" openwrt/package/base-files/files/etc/apk/repositories.d/customfeeds.list 2>/dev/null; then
-            echo "https://repo.owfeed.org/releases/25.12/${ARCH}/packages.adb" \
-              >> openwrt/package/base-files/files/etc/apk/repositories.d/customfeeds.list
-          fi
-          
+         
           # 44. Сохраняем фид и ключ при sysupgrade
           mkdir -p openwrt/package/base-files/files/lib/upgrade/keep.d
           printf '%s\n' /etc/apk/keys/owfeed-packages.pem /etc/apk/repositories.d/customfeeds.list \
