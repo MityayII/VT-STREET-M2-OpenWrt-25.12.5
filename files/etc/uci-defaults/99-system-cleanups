@@ -11,6 +11,13 @@ if [ -d /etc/apk/repositories.d ]; then
         sed -i '\|/modem/packages.adb|d' /etc/apk/repositories.d/distfeeds.list 2>/dev/null
         sed -i '\|/footstrap/packages.adb|d' /etc/apk/repositories.d/distfeeds.list 2>/dev/null
     fi
+
+    # Добавляем фид owfeed-packages в customfeeds.list (чтобы LuCI видел)
+    if ! grep -q "repo.owfeed.org" /etc/apk/repositories.d/customfeeds.list 2>/dev/null; then
+        ARCH=$(cat /etc/apk/arch)
+        echo "https://repo.owfeed.org/releases/25.12/${ARCH}/packages.adb" \
+            >> /etc/apk/repositories.d/customfeeds.list
+    fi
 fi
 
 # === 2. Настройка часового пояса и NTP ===
