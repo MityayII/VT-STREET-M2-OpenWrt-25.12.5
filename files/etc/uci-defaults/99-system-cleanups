@@ -1,11 +1,18 @@
 #!/bin/sh
 
-# === 1. Исправление репозиториев APK ===
+# === 1. Исправление репозиториев APK (точечное удаление фантомных фидов) ===
 if [ -d /etc/apk/repositories.d ]; then
-    sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
-    rm -f /etc/apk/repositories.d/modem.list 2>/dev/null    
-    sed -i '/\/footstrap/d' /etc/apk/repositories.d/* 2>/dev/null
+    # Удаляем файлы, которые создаются при feeds install для сторонних фидов
+    rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
+    rm -f /etc/apk/repositories.d/footstrap.list 2>/dev/null
+    
+    # Удаляем конкретные строки из distfeeds.list (если они там есть)
+    if [ -f /etc/apk/repositories.d/distfeeds.list ]; then
+        sed -i '\|/modem/packages.adb|d' /etc/apk/repositories.d/distfeeds.list 2>/dev/null
+        sed -i '\|/footstrap/packages.adb|d' /etc/apk/repositories.d/distfeeds.list 2>/dev/null
+    fi
 fi
+
 # === 2. Настройка часового пояса и NTP ===
 uci set system.@system[0].zonename='Europe/Moscow'
 uci set system.@system[0].timezone='<+03>-3'
