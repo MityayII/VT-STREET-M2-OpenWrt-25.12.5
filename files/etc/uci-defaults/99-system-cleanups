@@ -1,9 +1,23 @@
 #!/bin/sh
 
-# === 1. Исправление репозиториев APK ===
+# === 1. Исправление репозиториев APK (точечное удаление фантомных фидов) ===
 if [ -d /etc/apk/repositories.d ]; then
-    sed -i '/\/modem/d' /etc/apk/repositories.d/* 2>/dev/null
+    # Удаляем файлы, которые создаются при feeds install для сторонних фидов
     rm -f /etc/apk/repositories.d/modem.list 2>/dev/null
+    rm -f /etc/apk/repositories.d/footstrap.list 2>/dev/null
+    
+    # Удаляем конкретные строки из distfeeds.list (если они там есть)
+    if [ -f /etc/apk/repositories.d/distfeeds.list ]; then
+        sed -i '\|/modem/packages.adb|d' /etc/apk/repositories.d/distfeeds.list 2>/dev/null
+        sed -i '\|/footstrap/packages.adb|d' /etc/apk/repositories.d/distfeeds.list 2>/dev/null
+    fi
+
+    # Добавляем фид owfeed-packages в customfeeds.list (чтобы LuCI видел)
+    if ! grep -q "repo.owfeed.org" /etc/apk/repositories.d/customfeeds.list 2>/dev/null; then
+        ARCH=$(cat /etc/apk/arch)
+        echo "https://repo.owfeed.org/releases/25.12/${ARCH}/packages.adb" \
+            >> /etc/apk/repositories.d/customfeeds.list
+    fi
 fi
 
 # === 2. Настройка часового пояса и NTP ===
@@ -70,4 +84,49 @@ uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ra='disabled'
 uci commit dhcp
 /etc/init.d/odhcpd restart 2>/dev/null
+
+# === 7. Включение аппаратного офлоадинга (HFO) ===
+# Ускоряет обработку NAT на уровне чипа MT7621
+uci set firewall.@defaults[0].flow_offloading='1'
+uci set firewall.@defaults[0].flow_offloading_hw='1'
+uci commit firewall
+
+# Перезапускаем фаервол, чтобы применить настройки (опционально, но полезно)
+/etc/init.d/firewall restart 2>/dev/null
+
+# === Установка темы Footstrap по умолчанию ===
+uci set luci.main.mediaurlbase='/luci-static/footstrap'
+uci commit luci
+
+# === Настройка Footstrap: темная тема и узор с котиками ===
+uci set footstrap.settings=footstrap
+uci set footstrap.settings.darkmode='dark'
+uci set footstrap.settings.palette='footstrap'
+uci set footstrap.settings.wallpaper='pattern'
+uci set footstrap.settings.pattern='1a0192632c52383ea1a4a617fd7c5620'
+uci set footstrap.settings.pattern_size='440'
+uci set footstrap.settings.pattern_strength='20'
+uci set footstrap.settings.pattern_ink='theme'
+uci set footstrap.settings.layout='top'
+uci set footstrap.settings.tint='0'
+uci set footstrap.settings.accent='0'
+uci set footstrap.settings.good='0'
+uci set footstrap.settings.warn='0'
+uci set footstrap.settings.danger='0'
+uci set footstrap.settings.card='0'
+uci set footstrap.settings.control='0'
+uci set footstrap.settings.bar='0'
+uci set footstrap.settings.line='0'
+uci set footstrap.settings.rounding='12'
+uci set footstrap.settings.autocollapse='off'
+uci set footstrap.settings.tint_strength='100'
+uci set footstrap.settings.density='normal'
+uci set footstrap.settings.photo_dim='74'
+uci set footstrap.settings.content_width='1280'
+uci set footstrap.settings.card_opacity='100'
+uci set footstrap.settings.bar_opacity='100'
+uci set footstrap.settings.material='frosted'
+uci set footstrap.settings.blur='100'
+uci commit footstrap
+
 exit 0

@@ -45,13 +45,15 @@ jobs:
           path: openwrt/dl
           key: vt-street-m2-dl-${{ env.OPENWRT_TAG }}
 
-      - name: Inject fildunsky feed and install packages
+      - name: Inject fildunsky&VizzleTF feed and install packages
         working-directory: openwrt
         run: |
           echo "src-git modem https://github.com/fildunsky/luci-app-5gmodem.git" >> feeds.conf.default
+          # Добавляем фид Footstrap
+          echo "src-git footstrap https://github.com/VizzleTF/luci-theme-footstrap.git" >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
+          
       - name: Patch OpenWrt for VT-STREET-M2
         run: |
           OPENWRT_DIR="$PWD/openwrt"
@@ -104,6 +106,20 @@ jobs:
           mkdir -p openwrt/package/base-files/files/etc/uci-defaults
           cp -r files/* openwrt/package/base-files/files/ 2>/dev/null || true
 
+          # 42. Скачиваем ключ owfeed-packages (гибридный вариант)
+          mkdir -p openwrt/package/base-files/files/etc/apk/keys
+          if ! wget -qO openwrt/package/base-files/files/etc/apk/keys/owfeed-packages.pem \
+               https://repo.owfeed.org/owfeed-packages.pem; then
+            echo "WARNING: Could not download owfeed-packages.pem, using the one from files/"
+            cp files/etc/apk/keys/owfeed-packages.pem openwrt/package/base-files/files/etc/apk/keys/ 2>/dev/null || true
+          fi
+
+         
+          # 44. Сохраняем фид и ключ при sysupgrade
+          mkdir -p openwrt/package/base-files/files/lib/upgrade/keep.d
+          printf '%s\n' /etc/apk/keys/owfeed-packages.pem /etc/apk/repositories.d/customfeeds.list \
+            > openwrt/package/base-files/files/lib/upgrade/keep.d/owfeed-packages
+            
           # 45. Выдаем права на запуск всем скриптам из files/usr/bin/
           chmod +x openwrt/package/base-files/files/usr/bin/* 2>/dev/null || true
           # 50. Выдаем права на запуск нативным файлам в сборочном дереве
@@ -118,6 +134,8 @@ jobs:
 
       
           make package/vtmodem/clean          
+             
+          
 
       - name: Build OpenWrt Firmware
         run: |
@@ -130,3 +148,4 @@ jobs:
           name: VT-STREET-M2-Firmware-${{ env.OPENWRT_TAG }}
           retention-days: 14
           path: openwrt/bin/targets/ramips/mt7621/*
+     
