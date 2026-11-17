@@ -7,6 +7,7 @@
 * **Веб-интерфейс:** LuCI с русской локализацией и темой **Footstrap** (быстрая, с поддержкой мобильных устройств).
 ### 🔌 Драйверы (Kernel Modules)
 * `kmod-nf-tproxy`, `kmod-nft-tproxy` (для прокси/маршрутизации трафика).
+* `kmod-nf-conntrack-netlink` (Netlink-интерфейс для мониторинга и управления таблицей сетевых соединений `conntrack`).
 * **Исключены:** `uboot-envtools`, `wpad-basic-mbedtls`, `hostapd-common` (Wi-Fi стек отсутствует).
 
 ### 📦 Предустановленный софт
