@@ -1,20 +1,28 @@
 #!/bin/sh
 
-# Проверяем, что событие прилетело именно от интерфейса сотового модема и что интерфейс успешно поднялся (статус up)
+# Проверяем, что событие прилетело именно от интерфейса сотового модема и что интерфейс успешно поднялся
 if [ "$INTERFACE" = "modem" ] && [ "$ACTION" = "ifup" ]; then
     logger -t "hotplug-time" "Modem up: sysntpd resync..."
     
     # Мгновенно пинаем службу времени
     /etc/init.d/sysntpd restart 2>/dev/null
 
-    # === ДИНАМИЧЕСКАЯ НАСТРОЙКА LED ===
+    # === ФИКС ARP-ШТОРМА ===
     # Переменная $DEVICE содержит актуальное физическое имя (eth1, wwan0, usb0)
+    if [ -n "$DEVICE" ] && [ -d "/sys/class/net/$DEVICE" ]; then
+        # Отключаем ARP только для Ethernet-подобных интерфейсов (link/ether)
+        if ip link show dev "$DEVICE" | grep -q "link/ether"; then
+            logger -t "hotplug-noarp" "Disabling ARP on $DEVICE (modem eth-like interface)"
+            ip link set dev "$DEVICE" arp off 2>/dev/null
+            ip -4 neigh flush dev "$DEVICE" 2>/dev/null
+        fi
+    fi
+
+    # === ДИНАМИЧЕСКАЯ НАСТРОЙКА LED ===
     if [ -n "$DEVICE" ]; then
         logger -t "hotplug-led" "Binding LED 'net' to physical device: $DEVICE"
         
-        # Проверяем, существует ли реально такое устройство в системе
         if [ -d "/sys/class/net/$DEVICE" ]; then
-            # Удаляем старую секцию, чтобы не было дублей при перезапуске модема
             uci -q delete system.led_net
             
             uci set system.led_net=led
@@ -27,7 +35,6 @@ if [ "$INTERFACE" = "modem" ] && [ "$ACTION" = "ifup" ]; then
             uci add_list system.led_net.mode='rx'
             uci commit system
             
-            # Перезапускаем службу LED для применения
             /etc/init.d/led restart 2>/dev/null
         fi
     fi
